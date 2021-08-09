@@ -1,0 +1,30 @@
+type Item @model {
+  id: String!
+  name:String
+  description:String
+  tag: [String]
+  rating: Float
+  image: String
+  ingredient:[IngredientItem]
+  ingredientGroup:[IngredientGroupItem]
+  step:[StepItem]
+  notes:String
+  forked:String
+}
+
+type IngredientItem {
+  name:String
+  amount:String
+  unit:String
+  preparation:String
+
+}
+
+type IngredientGroupItem {
+  name:String
+  ingredient:[IngredientItem]
+}
+
+type StepItem {
+  description:String
+}
