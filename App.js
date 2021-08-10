@@ -42,6 +42,8 @@ function Home({navigation}) {
             : 'home-outline';
         } else if (route.name === 'Saved') {
           iconName = focused ? 'bookmark' : 'bookmark-outline';
+        } else if (route.name ==="Profile") {
+          iconName = focused ? "person":"person-outline";
         }
 
         // You can return any component that you like here!
@@ -53,16 +55,22 @@ function Home({navigation}) {
     >
       <Tab.Screen name="Feed" component={Feed} />
       <Tab.Screen name="Saved" component={Saved} />
-
     </Tab.Navigator>
   );
 };
 
-function DetailsScreen({route,navigation}) {
+function Profile({navigation}) {
 
-const {recipe} = route.params;
+  return (<View>
+  </View>)
+
+
+}
+function DetailsScreen({route,navigation}) {
+try {
+  const {recipe} = route.params;
   return (
-    <View>
+    <View key={recipe.id}>
        <ScrollView>
         <Image 
         source={{uri:recipe.image}} 
@@ -120,6 +128,15 @@ const {recipe} = route.params;
 
     </View>
   )
+} catch (e) {
+  console.log(e);
+  return (
+    <View><Text>Error</Text></View>
+  )
+}
+
+
+  
 };
 
 
@@ -130,14 +147,14 @@ function Feed({navigation}) {
   return (
     <HomeFlatlist nav={navigation}/>
   )
-};
+}
 function Saved({navigation}) {
 
 
   return (
     <SavedFlatlist nav={navigation}/>
   )
-};
+}
 
 async function removeObject(key) {
   try {
@@ -222,21 +239,25 @@ Alert.alert("Try Again Later")
        catch (e) {console.log(e)}
        }
        this.setState({loadingDatastore:false});
-     };
+     }
      
 
      fetchAsyncStore = async() => {
       try {
         this.setState({loadingAsyncStorage:true});
 
-        const keys = await AsyncStorage.getAllKeys();
+        const keys = await (await AsyncStorage.getAllKeys()).filter(
+          function(key) {
+            return !key.startsWith("@");
+          }
+        )
         const result = await AsyncStorage.multiGet(keys);
+        
         let currAsyncStore = result.map(req => {
           var key = req[0];
           var value = JSON.parse(req[1]);
-          return (value)
+          return (value);
           
-
         });
         this.setState({savedKeys:keys})
         this.setState({saved:currAsyncStore})
@@ -247,8 +268,7 @@ Alert.alert("Try Again Later")
       } catch (error) {
         console.error(error)
       }
-    };
-
+    }
 
  fetchDatastore = async () => { 
   try {
@@ -329,15 +349,13 @@ renderItem = (item) =>
        
   
        render() {
-       
+
        return (
        
 <FlatList 
 onRefresh={()=>this.onRefresh()}
 refreshing={this.state.isRefreshing}
 data={this.state.datastore} renderItem={({item}) => this.renderItem(item)} />
-
-
       
       )
        }
@@ -369,18 +387,23 @@ data={this.state.datastore} renderItem={({item}) => this.renderItem(item)} />
     
     componentDidMount () {
       this.fetchAsyncStore();
-    };
+    }
 
     fetchAsyncStore = async() => {
       try {
         this.setState({loadingAsyncStorage:true});
 
-        const keys = await AsyncStorage.getAllKeys();
+        const keys = await (await AsyncStorage.getAllKeys()).filter(
+          function(key) {
+            return !key.startsWith("@");
+          }
+        )
         const result = await AsyncStorage.multiGet(keys);
+        
         let currAsyncStore = result.map(req => {
           var key = req[0];
           var value = JSON.parse(req[1]);
-          return (value)
+          return (value);
         });
         this.setState({savedKeys:keys})
         this.setState({saved:currAsyncStore})
@@ -409,6 +432,12 @@ data={this.state.datastore} renderItem={({item}) => this.renderItem(item)} />
       this.setState({loadingAsyncStorage:false});
       Alert.alert("Removed");
     }
+
+    renderEmptyContainer = () =>
+    <View>
+      <Text>Empty, pull to refresh</Text>
+    </View> 
+
     
     renderItem = (item) => 
     <View style={styles.card}>
@@ -441,7 +470,7 @@ data={this.state.datastore} renderItem={({item}) => this.renderItem(item)} />
     </View>
     render () {
 
-
+     
       return (
         <FlatList
         onRefresh={()=>this.onRefresh()}
@@ -449,6 +478,7 @@ data={this.state.datastore} renderItem={({item}) => this.renderItem(item)} />
         data={this.state.saved}
         keyExtractor={item=>item.id}
         renderItem={({item}) => this.renderItem(item)}
+        ListEmptyComponent={this.renderEmptyContainer()}
         ></FlatList>
       )
     }
@@ -456,7 +486,7 @@ data={this.state.datastore} renderItem={({item}) => this.renderItem(item)} />
 
 
  
-function App() {
+const App =() => {
 
   const [isOffline, setOfflineStatus] = useState(false);
   
@@ -474,9 +504,18 @@ function App() {
 
     return (<NavigationContainer>
       <Stack.Navigator>
-
-        <Stack.Screen name="Details" component={DetailsScreen} />
+      <Stack.Screen
+          name="Home"
+          component={Home}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+  name="Details"
+  component={DetailsScreen}
+  initialParams={{ recipe: recipe[0] }}
+/>
       </Stack.Navigator>
+      
     </NavigationContainer>)
     
   }
@@ -488,8 +527,13 @@ function App() {
           component={Home}
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="Details" component={DetailsScreen} />
+         <Stack.Screen
+  name="Details"
+  component={DetailsScreen}
+  initialParams={{ recipe: recipe[0] }}
+/>
       </Stack.Navigator>
+     
     </NavigationContainer>
   );
 };
