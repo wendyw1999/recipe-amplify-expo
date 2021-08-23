@@ -1,8 +1,8 @@
 {
-    "identityPoolName": "recipeamplifya9833d2b_identitypool_a9833d2b",
+    "identityPoolName": "recipeamplify41c600dd_identitypool_41c600dd",
     "allowUnauthenticatedIdentities": false,
-    "resourceNameTruncated": "recipea9833d2b",
-    "userPoolName": "recipeamplifya9833d2b_userpool_a9833d2b",
+    "resourceNameTruncated": "recipe41c600dd",
+    "userPoolName": "recipeamplify41c600dd_userpool_41c600dd",
     "autoVerifiedAttributes": [
         "email"
     ],
@@ -31,10 +31,10 @@
     "userpoolClientReadAttributes": [
         "email"
     ],
-    "userpoolClientLambdaRole": "recipea9833d2b_userpoolclient_lambda_role",
+    "userpoolClientLambdaRole": "recipe41c600dd_userpoolclient_lambda_role",
     "userpoolClientSetAttributes": false,
-    "sharedId": "a9833d2b",
-    "resourceName": "recipeamplifya9833d2b",
+    "sharedId": "41c600dd",
+    "resourceName": "recipeamplify41c600dd",
     "authSelections": "identityPoolAndUserPool",
     "authRoleArn": {
         "Fn::GetAtt": [
@@ -48,7 +48,12 @@
             "Arn"
         ]
     },
-    "useDefault": "default",
+    "useDefault": "defaultSocial",
+    "hostedUI": true,
+    "hostedUIDomainName": "recipeapp",
+    "authProvidersUserPool": [],
+    "hostedUIProviderMeta": "[]",
+    "oAuthMetadata": "{\"AllowedOAuthFlows\":[\"code\"],\"AllowedOAuthScopes\":[\"phone\",\"email\",\"openid\",\"profile\",\"aws.cognito.signin.user.admin\"],\"CallbackURLs\":[\"exp://127.0.0.1:19000/--/\"],\"LogoutURLs\":[\"exp://127.0.0.1:19000/--/\"]}",
     "userPoolGroupList": [],
     "serviceName": "Cognito",
     "usernameCaseSensitive": false,

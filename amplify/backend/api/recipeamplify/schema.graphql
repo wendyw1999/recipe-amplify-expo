@@ -1,6 +1,9 @@
-type Item @model {
-  id: String!
+type Item @model 
+@auth(rules: [{ allow: public, operations: [read] }])
+{
+  id: ID!
   name:String
+  caseInsensitiveName:String
   description:String
   tag: [String]
   rating: Float
@@ -10,15 +13,39 @@ type Item @model {
   step:[StepItem]
   notes:String
   forked:String
+  users: [UserRecipe] @connection(keyName:"byRecipe",fields:["id"])
 }
+
+type User @model {
+
+  id:ID!
+  username:String!
+  recipes: [UserRecipe] @connection (keyName:"byUser",fields:["id"])
+  email:String
+  provider:String
+}
+
+type UserRecipe @model(queries: null) @key(name: "byUser", fields: ["userID", "recipeID"])
+  @key(name: "byRecipe", fields: ["recipeID", "userID"]) {
+
+    id:ID!
+    recipeID:ID!
+    userID:ID!
+    recipes:Item! @connection(fields:["recipeID"])
+    user:User! @connection(fields:["userID"])
+    liked:Boolean
+    rating:Float
+  }
 
 type IngredientItem {
   name:String
   amount:String
   unit:String
   preparation:String
-
 }
+
+
+
 
 type IngredientGroupItem {
   name:String

@@ -16,5 +16,23 @@
         "recipeamplifya9833d2b": {}
       }
     }
+  },
+  "macosdev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-recipeamplify-macosdev-171115-authRole",
+      "UnauthRoleArn": "arn:aws:iam::992186880564:role/amplify-recipeamplify-macosdev-171115-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::992186880564:role/amplify-recipeamplify-macosdev-171115-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-recipeamplify-macosdev-171115-deployment",
+      "UnauthRoleName": "amplify-recipeamplify-macosdev-171115-unauthRole",
+      "StackName": "amplify-recipeamplify-macosdev-171115",
+      "StackId": "arn:aws:cloudformation:us-east-1:992186880564:stack/amplify-recipeamplify-macosdev-171115/248edc40-014b-11ec-bde1-12717722e021",
+      "AmplifyAppId": "dt539cncbfq2y"
+    },
+    "categories": {
+      "auth": {
+        "recipeamplify41c600dd": {}
+      }
+    }
   }
 }

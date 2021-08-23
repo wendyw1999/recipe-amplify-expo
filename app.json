@@ -1,5 +1,6 @@
 {
   "expo": {
+    "scheme":"recipeapp",
     "name": "recipe-amplify",
     "slug": "recipe-amplify",
     "version": "1.0.0",

@@ -6,6 +6,7 @@ export const onCreateItem = /* GraphQL */ `
     onCreateItem {
       id
       name
+      caseInsensitiveName
       description
       tag
       rating
@@ -30,6 +31,25 @@ export const onCreateItem = /* GraphQL */ `
       }
       notes
       forked
+      users {
+        items {
+          id
+          recipeID
+          userID
+          liked
+          rating
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
+      _version
+      _deleted
+      _lastChangedAt
       createdAt
       updatedAt
     }
@@ -40,6 +60,7 @@ export const onUpdateItem = /* GraphQL */ `
     onUpdateItem {
       id
       name
+      caseInsensitiveName
       description
       tag
       rating
@@ -64,6 +85,25 @@ export const onUpdateItem = /* GraphQL */ `
       }
       notes
       forked
+      users {
+        items {
+          id
+          recipeID
+          userID
+          liked
+          rating
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
+      _version
+      _deleted
+      _lastChangedAt
       createdAt
       updatedAt
     }
@@ -74,6 +114,7 @@ export const onDeleteItem = /* GraphQL */ `
     onDeleteItem {
       id
       name
+      caseInsensitiveName
       description
       tag
       rating
@@ -98,6 +139,307 @@ export const onDeleteItem = /* GraphQL */ `
       }
       notes
       forked
+      users {
+        items {
+          id
+          recipeID
+          userID
+          liked
+          rating
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
+      _version
+      _deleted
+      _lastChangedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export const onCreateUser = /* GraphQL */ `
+  subscription OnCreateUser {
+    onCreateUser {
+      id
+      username
+      recipes {
+        items {
+          id
+          recipeID
+          userID
+          liked
+          rating
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
+      email
+      provider
+      _version
+      _deleted
+      _lastChangedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export const onUpdateUser = /* GraphQL */ `
+  subscription OnUpdateUser {
+    onUpdateUser {
+      id
+      username
+      recipes {
+        items {
+          id
+          recipeID
+          userID
+          liked
+          rating
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
+      email
+      provider
+      _version
+      _deleted
+      _lastChangedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export const onDeleteUser = /* GraphQL */ `
+  subscription OnDeleteUser {
+    onDeleteUser {
+      id
+      username
+      recipes {
+        items {
+          id
+          recipeID
+          userID
+          liked
+          rating
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
+      email
+      provider
+      _version
+      _deleted
+      _lastChangedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export const onCreateUserRecipe = /* GraphQL */ `
+  subscription OnCreateUserRecipe {
+    onCreateUserRecipe {
+      id
+      recipeID
+      userID
+      recipes {
+        id
+        name
+        caseInsensitiveName
+        description
+        tag
+        rating
+        image
+        ingredient {
+          name
+          amount
+          unit
+          preparation
+        }
+        ingredientGroup {
+          name
+        }
+        step {
+          description
+        }
+        notes
+        forked
+        users {
+          nextToken
+          startedAt
+        }
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      user {
+        id
+        username
+        recipes {
+          nextToken
+          startedAt
+        }
+        email
+        provider
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      liked
+      rating
+      _version
+      _deleted
+      _lastChangedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export const onUpdateUserRecipe = /* GraphQL */ `
+  subscription OnUpdateUserRecipe {
+    onUpdateUserRecipe {
+      id
+      recipeID
+      userID
+      recipes {
+        id
+        name
+        caseInsensitiveName
+        description
+        tag
+        rating
+        image
+        ingredient {
+          name
+          amount
+          unit
+          preparation
+        }
+        ingredientGroup {
+          name
+        }
+        step {
+          description
+        }
+        notes
+        forked
+        users {
+          nextToken
+          startedAt
+        }
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      user {
+        id
+        username
+        recipes {
+          nextToken
+          startedAt
+        }
+        email
+        provider
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      liked
+      rating
+      _version
+      _deleted
+      _lastChangedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export const onDeleteUserRecipe = /* GraphQL */ `
+  subscription OnDeleteUserRecipe {
+    onDeleteUserRecipe {
+      id
+      recipeID
+      userID
+      recipes {
+        id
+        name
+        caseInsensitiveName
+        description
+        tag
+        rating
+        image
+        ingredient {
+          name
+          amount
+          unit
+          preparation
+        }
+        ingredientGroup {
+          name
+        }
+        step {
+          description
+        }
+        notes
+        forked
+        users {
+          nextToken
+          startedAt
+        }
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      user {
+        id
+        username
+        recipes {
+          nextToken
+          startedAt
+        }
+        email
+        provider
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      liked
+      rating
+      _version
+      _deleted
+      _lastChangedAt
       createdAt
       updatedAt
     }

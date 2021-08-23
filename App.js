@@ -2,66 +2,348 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from "@react-navigation/native-stack";
 
+import { withAuthenticator } from 'aws-amplify-react-native';
 
 import recipe from "./recipe.json"
 import NetInfo from "@react-native-community/netinfo";
 
-import Amplify from '@aws-amplify/core';
+// import Amplify from '@aws-amplify/core';
 import config from './src/aws-exports';
-Amplify.configure(config);
 
 import API, { graphqlOperation } from '@aws-amplify/api';
 import * as mutations from './src/graphql/mutations';
 import * as queries from './src/graphql/queries';
+import Amplify, {Auth,Hub,DataStore} from "aws-amplify";
+import {SortDirection,Predicates} from "@aws-amplify/datastore";
 import AWSAppSyncClient, { AUTH_TYPE } from 'aws-appsync';
 import gql from 'graphql-tag';
 import { listItems } from './src/graphql/queries';
-
+import {   Item,UserRecipe,User,IngredientItem,IngredientGroupItem,StepItem} from './src/models'
 import React from "react";
 import {FlatList,Image,ImageBackground,ActivityIndicator,Alert,SafeAreaView,ScrollView,Button,
   TouchableOpacity,StyleSheet,View,Text,StatusBar} from "react-native";
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { useState,useEffect } from 'react';
+import { SearchBar,SocialIcon,ListItem,Avatar,Rating } from 'react-native-elements';
 
+import { Ionicons,Entypo } from '@expo/vector-icons';
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useState,useEffect ,useRef,useContext,createContext} from 'react';
+import recipe_json from "./recipe.json";
+
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
+import { ConsoleLogger } from '@aws-amplify/core';
+
+export const AuthContext = createContext();
+
+
+const COLOR = {
+
+  red:"#EB594C",
+  white:"#F1E5E0",
+  green:"#334429",
+  brown:"#C99C3A",
+  grey:"#A59495",
+  green:"#C9C18E"
+}
+
+const newRecipe_json = recipe_json.map(item=> {
+
+  return {...item,caseInsensitiveName:item.name.toLowerCase()}
+})
+/**Amplify documentation has this example */
+const urlOpenerExpo = async (url, redirectUrl) => {
+console.log(">>>>>>>>> in urlOpener")
+//    // On Expo, use WebBrowser.openAuthSessionAsync to open the Hosted UI pages.
+  const { type, url: newUrl } = await WebBrowser.openAuthSessionAsync(url, redirectUrl);
+
+   
+   if (type === 'success') {
+      WebBrowser.dismissBrowser();
+      if (Platform.OS === 'ios') {
+        return Linking.openURL(newUrl);
+      }
+   }
+ return Linking.openURL(newUrl);
+
+ };
+
+
+
+// const [
+//   simulatorSignin,
+//   expoSignin,
+// ] = config.oauth.redirectSignIn.split(",");
+
+// const [
+//   simulatorSignout,
+//   expoSignout,
+// ] = config.oauth.redirectSignOut.split(",");
+
+
+// let redirectUrl = Linking.makeUrl();
+// var isExpo = false;
+
+// if (redirectUrl.endsWith('19000')) {
+//   isExpo = true
+// }
+// const expoScheme = "recipeapp://";
+// const lanIP = "exp://192.168.1.70:19000/--/";
+// const localhost = "https://localhost:3000/"
+// const updatedAwsConfig = {
+//   ...config,
+//   oauth: {
+//     ...config.oauth,
+//     redirectSignIn: localhost,
+//     redirectSignOut: localhost,
+//     urlOpener:urlOpenerExpo
+//   },
+// };
+// console.log(redirectUrl);
+const updatedConfig = {
+  ...config,
+    "oauth":{
+      ...config.oauth,
+      urlOpener:urlOpenerExpo
+
+    }
+}
+Amplify.configure(updatedConfig);
+Auth.configure(updatedConfig);
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 
-function Home({navigation}) {
+function Home(props) {
+  const navigation = props.navigation; 
+  const [authState,setAuthState] = useContext(AuthContext);
   return (
-    <Tab.Navigator
+    <AuthContext.Provider value={[authState,setAuthState]}>
+      <Tab.Navigator
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
-
         if (route.name === 'Feed') {
           iconName = focused
             ? 'home'
             : 'home-outline';
-        } else if (route.name === 'Saved') {
-          iconName = focused ? 'bookmark' : 'bookmark-outline';
+        } else if (route.name === 'Explore') {
+          iconName = focused ? 'search' : 'search-outline';
         } else if (route.name ==="Profile") {
           iconName = focused ? "person":"person-outline";
         }
-
-        // You can return any component that you like here!
         return <Ionicons name={iconName} size={size} color={color} />;
       },
       tabBarActiveTintColor: 'tomato',
       tabBarInactiveTintColor: 'gray',
     })}
-    >
-      <Tab.Screen name="Feed" component={Feed} />
-      <Tab.Screen name="Saved" component={Saved} />
+    > 
+    <Tab.Screen name="Feed" component={Feed}/>
+    <Tab.Screen name="Explore" component={Explore} />
+     <Tab.Screen name="Profile" component={Profile}/>
     </Tab.Navigator>
+    </AuthContext.Provider >
+    
   );
 };
 
-function Profile({navigation}) {
 
+function Explore ({navigation}) {
+  const [search,setSearch] = useState("");
+  function updateSearch(search) {
+    setSearch(search);
+  }
+  return (
+    <ScrollView>
+     <SearchBar
+        placeholder="Type Here..."
+        onChangeText={updateSearch}
+        value={search}
+        lightTheme={true}
+      />
+    </ScrollView>
+  )
+}
+async function addRecipes(recipe_file) {
+
+  try {
+    await deleteDataStoreItem();
+    const recipes = await DataStore.query(Item);
+    const recipeNames = recipes.map(item=>item.name);
+    await recipe_file.map((item,i)=> {
+      if (item.name in recipeNames) {
+
+      } else {
+        DataStore.save(
+          new Item(item)
+        )
+      }
+    })
+
+  } catch(e) {console.log(e)}
+}
+
+async function deleteDataStoreItem() {
+  
+  const deleted = await DataStore.delete(Item, Predicates.ALL);
+  console.log("Deleted All Items");
+}
+
+async function createUser(userItem)
+
+{
+  try {
+    const user = DataStore.query(User,c=>c.username("eq",userItem.username))
+    if (user.length===0) {
+  const newUser = await DataStore.save(
+    new User(
+      {
+        username:userItem.username,
+        email:userItem.email,
+        provider:userItem.username.startsWith("facebook")?"facebook":"cognito",
+      }
+    )
+  )
+}
+return user;
+
+  } catch(e) {console.log(e)
+  
+  }
+
+
+
+}
+function UserStatus (props){
+  const [authState,setAuthState] = useContext(AuthContext);  
+  const isMountedRef = useRef(null);  
+const navigation = props.nav;
+  useEffect(()=>{
+    Hub.listen("auth", (data) => {
+      isMountedRef.current = true;
+      if(data!=null) {        
+        try {
+          var event = data.payload.event
+          var data = data.payload.data;
+          switch (event) {
+            case "signIn":
+              setAuthState({
+                username:data.signInUserSession.accessToken.payload.username,
+                email:data.signInUserSession.idToken.payload.email,
+                signedIn:true
+              });
+              
+              break;
+            case "signOut":
+              setAuthState({
+                username:"",
+                email:"",
+                signedIn:false
+              })
+              break;
+            case "customOAuthState":
+              setAuthState({
+                username:data.signInUserSession.accessToken.payload.username,
+                email:data.signInUserSession.idToken.payload.email,
+                signedIn:true
+              })
+          }
+        }
+        catch(e) {
+          console.log(e);}
+        
+      }
+      
+      
+    });
+    Auth.currentAuthenticatedUser()
+    .then(user => 
+      { setAuthState({
+      username:user.signInUserSession.accessToken.payload.username,
+      email:user.signInUserSession.idToken.payload.email,
+      signedIn:true
+    });
+    createUser({
+      username:user.signInUserSession.accessToken.payload.username,
+      email:user.signInUserSession.idToken.payload.email,
+      signedIn:true
+    });
+  }
+    )
+
+      return ()=> isMountedRef.current=false;
+  },[]);
+
+  const list = [
+    {
+      title: authState.email,
+      icon: "mail-outline",
+      link:false
+    },
+    {
+      title: authState.username,
+      icon: 'person-outline',
+      link:false
+    },
+    {
+      title: "Liked Recipes",
+      icon: 'heart',
+      link:true,
+      navigation:"Liked"
+    },
+    
+  ]
+
+
+    if (authState.signedIn==false) {
+      return(<View style={{paddingTop:"40%"}}>
+        <SocialIcon
+  title='Sign In With Facebook'
+  button
+  type='facebook'  
+  onPress={() => Auth.federatedSignIn({provider:"Facebook"})}/>
+
+<SocialIcon style={{backgroundColor:"black"}}
+fontStyle={{color:"white"}}
+  title='Sign In With Email'
+  button onPress={() => Auth.federatedSignIn()}/>
+
+      </View>)
+    }
+    return (
+      <View>
+      <View style={{paddingTop:5}}>
+  {
+    list.map((item, i) => (
+      <ListItem key={i} bottomDivider onPress={()=>item.navigation?navigation.navigate(item.navigation):{}}>
+        <Ionicons name={item.icon} size={20} />
+        <ListItem.Content>
+          <ListItem.Title>{item.title}</ListItem.Title>
+        </ListItem.Content>
+        <ListItem.Chevron style={{display:item.link?{}:"none"}}     
+        />
+      </ListItem>
+    ))
+  }
+</View>
+
+      <SocialIcon style={{backgroundColor:COLOR.grey}}
+  button onPress={()=>Auth.signOut({global:true})} title="Sign Out"/>
+
+      <Button title="Test" onPress={()=>addRecipes(newRecipe_json)}></Button>
+      </View>
+   
+    ) 
+}
+function Profile(props) {
+
+  const navigation = props.navigation;
+  const [authState,setAuthState] = useContext(AuthContext);  
   return (<View>
+    <AuthContext.Provider value={[authState,setAuthState]} >
+    <UserStatus nav={navigation}/>
+    </AuthContext.Provider>
   </View>)
 
 
@@ -69,6 +351,8 @@ function Profile({navigation}) {
 function DetailsScreen({route,navigation}) {
 try {
   const {recipe} = route.params;
+  console.log(recipe.caseInsensitiveName);
+
   return (
     <View key={recipe.id}>
        <ScrollView>
@@ -84,7 +368,7 @@ try {
       <View className="tags" style={styles.tagList}>
         {recipe.tag.map(
           (item,index)=>{
-            return (<TouchableOpacity style={styles.tag}>
+            return (<TouchableOpacity style={styles.tag} key={index}>
               <Text style={styles.recipeTagText}>{item}</Text>
             </TouchableOpacity>)
           }
@@ -100,7 +384,7 @@ try {
       <View className="ingredients" >
         {recipe.ingredient.map(
           (item,index)=>{
-            return (<View>
+            return (<View key={index}>
               <Text style={styles.recipeIngredient}>{item.name} {item.preparation}
               <Text style={styles.recipeUnit}> {item.amount} {item.unit} </Text>
 </Text>
@@ -114,7 +398,7 @@ try {
       <View className="steps" >
         {recipe.step.map(
           (item,index)=>{
-            return (<View>
+            return (<View key={index}>
               <Text style={styles.recipeStep}>
                 <Text style={styles.recipeStepIndex}>{index+1}. </Text>{item.description} 
               </Text></View>)
@@ -142,17 +426,23 @@ try {
 
 
 function Feed({navigation}) {
-
+  const [authState,setAuthState] = useContext(AuthContext);
 
   return (
-    <HomeFlatlist nav={navigation}/>
+    // <HomeFlatlist nav={navigation}/>
+    <AuthContext.Provider value={[authState,setAuthState]}>
+    <HomeFlatList_ nav={navigation} />
+    </AuthContext.Provider>
   )
 }
-function Saved({navigation}) {
+function Liked({navigation}) {
 
+  const [authState,setAuthState] = useContext(AuthContext);
 
   return (
-    <SavedFlatlist nav={navigation}/>
+    <AuthContext.Provider value={[authState,setAuthState]}>
+    <HomeFlatList_ nav={navigation} saved={true}/>
+    </AuthContext.Provider>
   )
 }
 
@@ -199,341 +489,491 @@ const client = new AWSAppSyncClient({
   disableOffline:true,
 });
 
-class HomeFlatlist extends React.Component {
-
-  constructor(props) {
-     super(props)
-     this.state = {
-       loadingDatastore: false,
-       loadingAsyncStorage:false,
-       isRefreshing:false,
-       datastore: [],
-       saved:[],
-       savedKeys:[],
-       };
-     };
-     onRefresh = async() => {
-       if (this.state.loadingDatastore||this.state.loadingAsyncStorage) {
-Alert.alert("Try Again Later")
-
-       } else {
-       this.setState({isRefreshing:true})
-       await this.fetchAsyncStore();
-       await this.fetchDatastore();
-       this.setState({isRefreshing:false});
-       }
-
-     };
-
-     componentDidMount() {
-      this.fetchAsyncStore().then(this.fetchDatastore());
-  }
-     
-  
-     addRecipes = async () => {
-       this.setState({loadingDatastore:true});
-       for (const [index,value] of recipe.entries()) {
-         try
-       {const newItem = await API.graphql({ query: mutations.createItem, variables: {input: value}});
-       }
-       catch (e) {console.log(e)}
-       }
-       this.setState({loadingDatastore:false});
-     }
-     
-
-     fetchAsyncStore = async() => {
-      try {
-        this.setState({loadingAsyncStorage:true});
-
-        const keys = await (await AsyncStorage.getAllKeys()).filter(
-          function(key) {
-            return !key.startsWith("@");
-          }
-        )
-        const result = await AsyncStorage.multiGet(keys);
-        
-        let currAsyncStore = result.map(req => {
-          var key = req[0];
-          var value = JSON.parse(req[1]);
-          return (value);
-          
-        });
-        this.setState({savedKeys:keys})
-        this.setState({saved:currAsyncStore})
-        this.setState({loadingAsyncStorage:false})
-        
-
-    
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
- fetchDatastore = async () => { 
-  try {
-    this.setState({loadingDatastore:true});
-
-  client.query({
-    query: gql(listItems)
-  }).then(({ data: { listItems } }) => {
-    this.setState({datastore:
-      listItems.items.map(
-        item => {
-          item.favorited = this.state.savedKeys.includes(item.id);
-        return item;}
-      )
-    });
-  });
-  this.setState({loadingDatastore:false});  
-
-} catch (e) {
-  console.log(e);
-} 
 
 
-};
+function HomeFlatList_ (props) {
 
-selectItem = async(item) => {
+  const [authState,setAuthState] = useContext(AuthContext);
 
-
-  item.favorited = !item.favorited;
-  if (!item.favorited) {
-    await removeObject(item.id);
+ const [loading,setLoading] = useState(false);
+  const [saved,setSaved] = useState([]);
+  const [data,setData] = useState([]);
+  const [savedKeys,setSavedKeys] = useState([]);
+const [isRefreshing,setRefreshing] = useState(false);
+const isMountedRef = useRef(null);
+const [search,setSearch] = useState("");
+function updateSearch(search) {
+  if(search==="") {
+    fetchRecipesDataStore(authState);
   } else {
-    await setObjectValue(item.id,item);
+    
+    queryRecipes(search.trim().toLowerCase())
   }
-  const index = this.state.datastore.findIndex(
-   i => item.id === i.id
-  );
+  setSearch(search);
+}
+async function queryRecipes(string) {
   
-  this.state.datastore[index] = item;
+  if (props.saved==false ){
+    try{
+
+      const recipesBeginWith = await DataStore.query(Item,c=>c.caseInsensitiveName("beginsWith",string),{
+        page: 0,
+        limit: 100
+      });
+      const recipesContain = await DataStore.query(Item,c=>c.caseInsensitiveName("contains",string),{
+        page: 0,
+        limit: 100
+      });
+      const beginKeys = recipesBeginWith.map(item=>item.id);
+      const recipesFinal = recipesContain.filter(item=>!beginKeys.includes(item.id));
+      const recipesTotal = recipesBeginWith.concat(recipesFinal);
+      setData(recipesTotal);
+  }catch(e) {console.log(e)}
+}
+
+   else {
+
+    const savedStartsWith = saved.filter(
+      item=>item.caseInsensitiveName.startsWith(string)
+    )
+    const savedContains = saved.filter(
+      item=>item.caseInsensitiveName.includes(string)
+    )
+    const beginKeys = savedStartsWith.map(item=>item.id);
+    const recipesFinal = savedContains.filter(item=>!beginKeys.includes(item.id));
+    const recipesTotal = recipesBeginWith.concat(recipesFinal);
+    setSaved(recipesTotal);  }
+}
   
-  this.setState({
-   datastore: this.state.datastore,
-  });
-  };
-
-
-renderItem = (item) => 
-    <View style={styles.card}>
-      <TouchableOpacity onPress={
-        ()=>this.props.nav.navigate("Details",{
-          recipe:item
-        })
-      }>
-      <View style={{flexDirection:"row"}}>
-        <View  style={styles.container}>
-        <ImageBackground 
-        source={{uri:item.image}} resizeMode="cover" style={styles.imageBackground}>
-      
-      <View style={styles.gradient}>
-      <TouchableOpacity style={styles.heart} onPress={()=>this.selectItem(item)}> 
-        <Ionicons name={item.favorited?"heart":"heart-outline"} size={20} 
-        color={item.favorited?"tomato":"#F1E5E0"}></Ionicons>
-      </TouchableOpacity>
-      <Text style={styles.text}>{item.name}</Text>
-
-      </View>
-
-     
-     
-    </ImageBackground>
-        </View>
-
-      </View>
-      </TouchableOpacity>
-    </View>
-
-     
-       
-  
-       render() {
-
-       return (
-       
-<FlatList 
-onRefresh={()=>this.onRefresh()}
-refreshing={this.state.isRefreshing}
-data={this.state.datastore} renderItem={({item}) => this.renderItem(item)} />
-      
-      )
-       }
-       
- }
-
-
- class SavedFlatlist extends React.Component {
-
-
-
-  constructor(props) {
-    super(props)
-    this.state = {
-      isRefreshing:false,
-      loadingAsyncStorage:false,
-      datastore: [],
-      saved:[],
-      savedKeys:[],
-      };
-    };
-    onRefresh = async() => {
-      this.setState({isRefreshing:true})
-       await this.fetchAsyncStore();
-       this.setState({isRefreshing:false});
-
-    }
-    
-    
-    componentDidMount () {
-      this.fetchAsyncStore();
-    }
-
-    fetchAsyncStore = async() => {
-      try {
-        this.setState({loadingAsyncStorage:true});
-
-        const keys = await (await AsyncStorage.getAllKeys()).filter(
-          function(key) {
-            return !key.startsWith("@");
-          }
-        )
-        const result = await AsyncStorage.multiGet(keys);
-        
-        let currAsyncStore = result.map(req => {
-          var key = req[0];
-          var value = JSON.parse(req[1]);
-          return (value);
-        });
-        this.setState({savedKeys:keys})
-        this.setState({saved:currAsyncStore})
-        this.setState({loadingAsyncStorage:false})
-
-
-      } catch (error) {
-        console.error(error)
-      }
-    };;
-
-    removeItem = async(item) => {
-
-
-      this.setState({loadingAsyncStorage:true});
-      try {
-        const removed = await removeObject(item.id);
-      } catch (e) {
-        console.log(e)
-      }
-      const index = this.state.saved.findIndex(
-        i => item.id === i.id
-       );
-       const removed = this.state.saved.splice(index,1);
-       this.setState({saved:this.state.saved});
-      this.setState({loadingAsyncStorage:false});
-      Alert.alert("Removed");
-    }
-
-    renderEmptyContainer = () =>
-    <View>
-      <Text>Empty, pull to refresh</Text>
-    </View> 
-
-    
-    renderItem = (item) => 
-    <View style={styles.card}>
-      <TouchableOpacity onPress={
-        ()=>this.props.nav.navigate("Details",{
-          recipe:item
-        })
-      }>
-      <View style={{flexDirection:"row"}}>
-        <View  style={styles.container}>
-        <ImageBackground 
-        source={{uri:item.image}} resizeMode="cover" style={styles.imageBackground}>
-      
-      <View style={styles.gradient}>
-      <TouchableOpacity style={styles.heart} onPress={()=>this.removeItem(item)}> 
-        <Ionicons name="trash-outline" size={20} 
-        color="white"></Ionicons>
-      </TouchableOpacity>
-      <Text style={styles.text}>{item.name}</Text>
-
-      </View>
-
-     
-     
-    </ImageBackground>
-        </View>
-
-      </View>
-      </TouchableOpacity>
-    </View>
-    render () {
-
-     
-      return (
-        <FlatList
-        onRefresh={()=>this.onRefresh()}
-        refreshing = {this.state.isRefreshing}
-        data={this.state.saved}
-        keyExtractor={item=>item.id}
-        renderItem={({item}) => this.renderItem(item)}
-        ListEmptyComponent={this.renderEmptyContainer()}
-        ></FlatList>
-      )
-    }
- }
-
-
+   
  
-const App =() => {
 
-  const [isOffline, setOfflineStatus] = useState(false);
-  
+
+
+
+  // useEffect(() => {
+  //   isMountedRef.current = true;
+  //   fetchRecipesDataStore();
+
+
+  //   return () => isMountedRef.current = false;
+  // },[]);
+
   useEffect(() => {
-    const removeNetInfoSubscription = NetInfo.addEventListener((state) => {
-      const offline = !(state.isConnected && state.isInternetReachable);
-      setOfflineStatus(offline);
-    })
-    return () => {
-      removeNetInfoSubscription();
-    }
+    Hub.listen("auth", (data) => {
+      isMountedRef.current = true;
+      if(data!=null) {        
+        try {
+          var event = data.payload.event
+          var data = data.payload.data;
+          switch (event) {
+            case "signIn":
+              setAuthState({
+                username:data.signInUserSession.accessToken.payload.username,
+                email:data.signInUserSession.idToken.payload.email,
+                signedIn:true
+              });
+              
+              break;
+            case "signOut":
+              setAuthState({
+                username:"",
+                email:"",
+                signedIn:false
+              })
+              break;
+            case "customOAuthState":
+              setAuthState({
+                username:data.signInUserSession.accessToken.payload.username,
+                email:data.signInUserSession.idToken.payload.email,
+                signedIn:true
+              })
+          }
+        }
+        catch(e) {
+          console.log(e);}
+        
+      }
+      
+      
+    });
+    Auth.currentAuthenticatedUser()
+    .then(user => 
+      { setAuthState({
+      username:user.signInUserSession.accessToken.payload.username,
+      email:user.signInUserSession.idToken.payload.email,
+      signedIn:true
+    });
+    createUser({
+      username:user.signInUserSession.accessToken.payload.username,
+      email:user.signInUserSession.idToken.payload.email,
+      signedIn:true
+    });
+    fetchRecipesDataStore(
+      {
+        username:user.signInUserSession.accessToken.payload.username,
+        email:user.signInUserSession.idToken.payload.email,
+        signedIn:true
+      }
+    )
+
+  }
+    ).catch((e)=>console.log("Not signed in"))
+    fetchRecipesDataStore({signedIn:false})
+
   },[]);
 
-  if (isOffline) {
+  useEffect(()=> {
+fetchRecipesDataStore(authState);
+  },[authState])
 
-    return (<NavigationContainer>
-      <Stack.Navigator>
-      <Stack.Screen
-          name="Home"
-          component={Home}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-  name="Details"
-  component={DetailsScreen}
-  initialParams={{ recipe: recipe[0] }}
-/>
-      </Stack.Navigator>
+onRefresh = async() => {
+
+    if (loading) {
+      Alert.alert("Try Again Later")
       
-    </NavigationContainer>)
-    
+             } else {
+              setRefreshing(true);
+
+              if(authState.signedIn) {
+                fetchRecipesDataStore(authState);
+
+              } 
+
+             setRefreshing(false);
+
+             }
   }
+  async function fetchRecipesDataStore (auth) {
+    
+    try {
+      
+
+      if (auth.signedIn===false) {
+        const mess = await DataStore.query(Item);
+        setData(mess);
+      return;
+      } else {
+        const mess = await DataStore.query(Item);
+        setData(mess);
+        const likedItems = (await DataStore.query(UserRecipe)).filter(
+              pe => (pe.user.username===auth.username)&&(pe.liked===true)
+          ).map(pe => pe.recipes);
+          setSaved(likedItems);
+          const keys = likedItems.map(item=>item.id)
+          setSavedKeys(keys);
+          const newData = mess.map(item=>{
+            if (keys.includes(item.id)) {
+              return {...item,favorited:true}
+            } else {
+              return {...item,favorited:false}
+            }
+          })
+          setData(newData);
+      }
+    //   
+      setLoading(false);
+    } catch(e) {console.log(e)}
+    
+
+  }
+  
+  likeItem = async(recipe_id) => {
+    if (authState.signedIn==false) {
+      Alert.alert("Sign in first");
+      return;
+    }
+    try {
+      const userItems = await DataStore.query(User,c=>c.username("eq",authState.username));
+      
+      const recipeItem = await DataStore.query(Item,recipe_id);
+    const originalItems = (await DataStore.query(UserRecipe)).filter(
+        pe => (pe.user.username===authState.username)&&(pe.recipes.id===recipe_id));
+        let originalItem;
+        if (originalItems.length===0) {
+
+          originalItem = await DataStore.save(
+            new UserRecipe ({
+            user:userItems[0],
+            recipes:recipeItem,
+            liked:true,
+          }));
+        // saved.push(recipeItem);
+        // setSaved(saved);
+        // setSavedKeys(saved.map(item=>item.id));
+        console.log(originalItem.liked);
+        const newData = data.map(item=>{
+          if(item.id ===recipe_id) {
+            return {...item,favorited:true}
+          } return item;
+        }
+          )
+        setData(newData);
+
+        } else {
+          originalItem = originalItems[0];
+          const updatedItem = await DataStore.save(
+            UserRecipe.copyOf(originalItem, updated => {
+              updated.liked = !originalItem.liked;
+            })
+          );
+          console.log(originalItem.liked);
+
+          if (updatedItem.liked) {
+            // saved.push(recipeItem);
+            // setSaved(saved);
+            // setSavedKeys(saved.map(item=>item.id));
+            const newData = data.map(item=>{
+              if(item.id ===recipe_id) {
+                return {...item,favorited:true}
+              } return item;
+            }
+              )
+            setData(newData);
+          } else {
+            // const newSaved = saved.filter(item=>item.id!=recipeItem.id);
+            // setSaved(newSaved);
+            // setSavedKeys(newSaved.map(item=>item.id));
+            const newData = data.map(item=>{
+              if(item.id ===recipe_id) {
+                return {...item,favorited:false}
+              } return item;
+            }
+              )
+            setData(newData);
+
+
+          }
+        }
+     
+    } 
+    catch(e) {console.log(e)}
+
+    setLoading(false);
+
+  }
+
+
+  async function removeItem(item) {
+
+    const newSaved = saved.filter(i=>i.id!=item.id);
+    setSaved(newSaved);
+    setSavedKeys(newSaved.map(item=>item.id));
+    try {
+      const originalItems = (await DataStore.query(UserRecipe)).filter(
+        pe => (pe.user.username===authState.username)&&(pe.recipes.id===item.id));
+      if (originalItems.length===0) {
+        console.log("Already removed")
+      } else {
+  
+        const originalItem = originalItems[0];
+        const updatedItem = await DataStore.save(
+          UserRecipe.copyOf(originalItem, updated => {
+            updated.liked = false;
+          })
+        );
+        console.log("Removed Item");
+      }
+      
+      
+      Alert.alert("Removed");
+    } catch(e) {console.log(e)}
+    }
+    
+  function renderSavedItem(item) {
+
+    return (<View style={styles.card}>
+      <TouchableOpacity onPress={
+        ()=>props.nav.navigate("Details",{
+          recipe:item
+        })
+      }>
+      <View style={{flexDirection:"row"}}>
+        <View  style={styles.container}>
+        <ImageBackground 
+        source={{uri:item.image}} resizeMode="cover" style={styles.imageBackground}>
+      
+      <View style={styles.gradient}>
+      {/* <TouchableOpacity style={styles.heart} onPress={()=>removeItem(item)}> 
+        <Ionicons name="trash-outline" size={20} 
+        color="white"></Ionicons>
+      </TouchableOpacity> */}
+      <Text style={styles.text}>{item.name}</Text>
+    
+      </View>
+    
+     
+     
+    </ImageBackground>
+        </View>
+    
+      </View>
+      </TouchableOpacity>
+    </View>
+    )
+  }
+
+  function renderItem(item,index) {
+    // console.log(state.saved);
+    // const savedIDs = state.saved.map(item=>item.id);
+    return (<View style={styles.card}>
+  <TouchableOpacity onPress={
+    ()=>props.nav.navigate("Details",{
+      recipe:item
+    })
+  }>
+  <View style={{flexDirection:"row"}}>
+    <View  style={styles.container}>
+    <ImageBackground 
+    source={{uri:item.image}} resizeMode="cover" style={styles.imageBackground}>
+  
+  <View style={styles.gradient}>
+  <TouchableOpacity style={styles.heart} onPress={()=>likeItem(item.id)}> 
+    <Ionicons name={item.favorited?"heart":"heart-outline"} size={20} 
+    color={item.favorited?"tomato":"#F1E5E0"}></Ionicons>
+  </TouchableOpacity>
+  <Text style={styles.text}>{item.name}</Text>
+
+  </View>
+
+ 
+ 
+</ImageBackground>
+    </View>
+
+  </View>
+  </TouchableOpacity>
+</View>
+)
+  }
+  if (props.saved==true) {
+    return (<View><FlatList
+    ListHeaderComponent={<SearchBar
+      placeholder="Type Here..."
+      onChangeText={updateSearch}
+      value={search}
+      lightTheme={true}
+    />}
+    refreshing={isRefreshing}
+    onRefresh={()=>onRefresh()}
+    data={saved}
+    renderItem={({item}) => renderSavedItem(item)}
+    >
+      </FlatList></View>)
+  }
+  return(
+    <View>
+<FlatList 
+ ListHeaderComponent={<SearchBar
+  placeholder="Type Here..."
+  onChangeText={updateSearch}
+  value={search}
+  lightTheme={true}
+/>}
+refreshing={isRefreshing}
+onRefresh={()=>onRefresh()}
+data={data} renderItem={({item}) => renderItem(item)} />
+       </View>
+  )
+
+}
+
+ 
+
+const App =() => {
+
+
+  const [authState,setAuthState] = useState({
+    id:"",
+    username:"",
+    signedIn:false
+  });
+
+  const isMountedRef = useRef(null);  
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    Hub.listen("auth", (data) => {
+      if(data!=null) {        
+        try {
+          var event = data.payload.event
+          var data = data.payload.data;
+          switch (event) {
+            case "signIn":
+              setAuthState({
+                username:data.signInUserSession.accessToken.payload.username,
+                email:data.signInUserSession.idToken.payload.email,
+                signedIn:true
+              });
+              
+              break;
+            case "signOut":
+              setAuthState({
+                username:"",
+                email:"",
+                signedIn:false
+              })
+              break;
+            case "customOAuthState":
+              setAuthState({
+                username:data.signInUserSession.accessToken.payload.username,
+                email:data.signInUserSession.idToken.payload.email,
+                signedIn:true
+              })
+          }
+        }
+        catch(e) {
+          console.log(e);}
+        
+      }
+      
+      
+    });
+    Auth.currentAuthenticatedUser()
+    .then((user) => 
+      { 
+        setAuthState({
+      username:user.signInUserSession.accessToken.payload.username,
+      email:user.signInUserSession.idToken.payload.email,
+      signedIn:true
+    });
+    createUser({
+      username:user.signInUserSession.accessToken.payload.username,
+      email:user.signInUserSession.idToken.payload.email,
+      signedIn:true
+    });
+  }
+    )
+    .catch(() => 
+    console.log("Not signed in")
+    );
+    
+    return ()=> isMountedRef.current=false;
+  },[])
+
   return (
     <NavigationContainer>
+      <AuthContext.Provider value={[authState,setAuthState]}>
       <Stack.Navigator>
+        
         <Stack.Screen
           name="Home"
-          component={Home}
-          options={{ headerShown: false }}
-        />
+          options={{ headerShown: false }} component={Home}
+        >
+        </Stack.Screen>
          <Stack.Screen
   name="Details"
   component={DetailsScreen}
   initialParams={{ recipe: recipe[0] }}
 />
+<Stack.Screen
+  name="Liked"
+  component={Liked}
+/>
       </Stack.Navigator>
      
+      </AuthContext.Provider >
+      
     </NavigationContainer>
   );
 };
@@ -657,8 +1097,8 @@ color:themeColorWhite,
 tag: {
   shadowColor: "#000",
 shadowOffset: {
-	width: 0,
-	height: 2,
+  width: 0,
+  height: 2,
 },
 padding:10,
 alignSelf:"center",
@@ -680,3 +1120,4 @@ alignSelf:"center",
 },
 });
 export default App;
+
