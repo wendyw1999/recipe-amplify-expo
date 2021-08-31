@@ -1,17 +1,18 @@
-# IOS Recipe App With Ability to Save/Favorite Recipes for Local Storage Built With React Native and AWS API & Auth Backend
+# iOS Recipe App React Native & AWS Backend
 
-A recipe app that can store user favorited items cross-platform and write recipes on their own. 
+A recipe app that can store user favorited items cross-platform and upload recipes on their own. 
+The app uses React Native and AWS API and Authentication backend.
 
 [Link to Download Simulation Version]https://recipe-amplify.s3.us-west-1.amazonaws.com/recipe-amplify-version-2.tar
 
-### Function 1: Liking a recipe
+### Feature 1: Liking a recipe
 The information is stored in the cloud cross-platform.
 <p align="center">
   <img src="./example/img_home_screen.png" width="300" title="Home Screen">
   <img src="./example/img_saved_screen.png" width="300" alt="Liked Screen">
 </p>
 
-### Function 2: Search by recipe name and by tag
+### Feature 2: Search by recipe name and by tag
 
 1. Search will return all the recipes that contain or start with the search keyword
 2. Clicking on the tag will search for all the recipes that contain the specific tag name. 
@@ -22,7 +23,7 @@ The information is stored in the cloud cross-platform.
   
   </p>
 
-### Function 3: Log in with AWS Cognito userpool and Facebook Federated Sign in Option
+### Feature 3: Log in with AWS Cognito userpool and Facebook Federated Sign in Option
 
 <p align="center">
   <img src="./example/img_profile_screen.png" width="300" title="Profile Screen">
@@ -50,5 +51,8 @@ Click on the app and starts saving recipes!
 
 
 
+# Features To Be Implemented
+1. Uploading images and storage of images using S3. 
+2. Better UX flow of creating recipes. 
 
 
