@@ -111,6 +111,13 @@ export const schema = {
                         "associatedWith": "recipes"
                     }
                 },
+                "creator": {
+                    "name": "creator",
+                    "isArray": false,
+                    "type": "ID",
+                    "isRequired": false,
+                    "attributes": []
+                },
                 "createdAt": {
                     "name": "createdAt",
                     "isArray": false,
@@ -136,15 +143,12 @@ export const schema = {
                     "properties": {}
                 },
                 {
-                    "type": "auth",
+                    "type": "key",
                     "properties": {
-                        "rules": [
-                            {
-                                "allow": "public",
-                                "operations": [
-                                    "read"
-                                ]
-                            }
+                        "name": "byCreator",
+                        "fields": [
+                            "creator",
+                            "name"
                         ]
                     }
                 }
@@ -222,9 +226,7 @@ export const schema = {
             "attributes": [
                 {
                     "type": "model",
-                    "properties": {
-                        "queries": null
-                    }
+                    "properties": {}
                 },
                 {
                     "type": "key",
@@ -292,6 +294,20 @@ export const schema = {
                     "type": "String",
                     "isRequired": false,
                     "attributes": []
+                },
+                "createdRecipes": {
+                    "name": "createdRecipes",
+                    "isArray": true,
+                    "type": {
+                        "model": "Item"
+                    },
+                    "isRequired": false,
+                    "attributes": [],
+                    "isArrayNullable": true,
+                    "association": {
+                        "connectionType": "HAS_MANY",
+                        "associatedWith": "creator"
+                    }
                 },
                 "createdAt": {
                     "name": "createdAt",
@@ -386,9 +402,16 @@ export const schema = {
                     "type": "String",
                     "isRequired": false,
                     "attributes": []
+                },
+                "image": {
+                    "name": "image",
+                    "isArray": false,
+                    "type": "String",
+                    "isRequired": false,
+                    "attributes": []
                 }
             }
         }
     },
-    "version": "c6a5152bf6e8001ef2a218de659b6432"
+    "version": "05e299e28fdf67e067e3fce8395d39ab"
 };

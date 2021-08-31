@@ -1,6 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from "@react-navigation/native-stack";
+import { useForm, Controller } from "react-hook-form";
+import RNPickerSelect from 'react-native-picker-select';
 
 import { withAuthenticator } from 'aws-amplify-react-native';
 
@@ -13,16 +15,15 @@ import config from './src/aws-exports';
 import API, { graphqlOperation } from '@aws-amplify/api';
 import * as mutations from './src/graphql/mutations';
 import * as queries from './src/graphql/queries';
-import Amplify, {Auth,Hub,DataStore} from "aws-amplify";
-import {SortDirection,Predicates} from "@aws-amplify/datastore";
+import Amplify, {Auth,Hub,DataStore,SortDirection,Predicates} from "aws-amplify";
 import AWSAppSyncClient, { AUTH_TYPE } from 'aws-appsync';
 import gql from 'graphql-tag';
-import { listItems } from './src/graphql/queries';
+import { listItems,listUserRecipes,listUsers } from './src/graphql/queries';
 import {   Item,UserRecipe,User,IngredientItem,IngredientGroupItem,StepItem} from './src/models'
 import React from "react";
-import {FlatList,Image,ImageBackground,ActivityIndicator,Alert,SafeAreaView,ScrollView,Button,
-  TouchableOpacity,StyleSheet,View,Text,StatusBar} from "react-native";
-import { SearchBar,SocialIcon,ListItem,Avatar,Rating } from 'react-native-elements';
+import {FlatList,Image,ImageBackground,ActivityIndicator,Alert,SafeAreaView,ScrollView,
+  TouchableOpacity,StyleSheet,View,Text,StatusBar,TextInput} from "react-native";
+import { Icon,Input,Button,SearchBar,SocialIcon,ListItem,Avatar,Rating } from 'react-native-elements';
 
 import { Ionicons,Entypo } from '@expo/vector-icons';
 
@@ -33,11 +34,14 @@ import recipe_json from "./recipe.json";
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { ConsoleLogger } from '@aws-amplify/core';
+import { setAutoLogAppEventsEnabledAsync } from 'expo-facebook';
 
 export const AuthContext = createContext();
 
+Amplify.configure(config);
 
 const COLOR = {
+  lightRed:"#F2DBD5",
 
   red:"#EB594C",
   white:"#F1E5E0",
@@ -49,7 +53,9 @@ const COLOR = {
 
 const newRecipe_json = recipe_json.map(item=> {
 
-  return {...item,caseInsensitiveName:item.name.toLowerCase()}
+  return {...item,caseInsensitiveName:item.name.toLowerCase(),
+  tag:item.tag.map(item=>{return item.toLowerCase()})
+  }
 })
 /**Amplify documentation has this example */
 const urlOpenerExpo = async (url, redirectUrl) => {
@@ -81,33 +87,29 @@ console.log(">>>>>>>>> in urlOpener")
 // ] = config.oauth.redirectSignOut.split(",");
 
 
-// let redirectUrl = Linking.makeUrl();
-// var isExpo = false;
+let redirectUrl = Linking.makeUrl();
+const expoScheme = "recipeapp://";
 
-// if (redirectUrl.endsWith('19000')) {
-//   isExpo = true
-// }
-// const expoScheme = "recipeapp://";
-// const lanIP = "exp://192.168.1.70:19000/--/";
-// const localhost = "https://localhost:3000/"
-// const updatedAwsConfig = {
-//   ...config,
-//   oauth: {
-//     ...config.oauth,
-//     redirectSignIn: localhost,
-//     redirectSignOut: localhost,
-//     urlOpener:urlOpenerExpo
-//   },
-// };
-// console.log(redirectUrl);
+if (redirectUrl.startsWith('exp://1')) {
+  redirectUrl = redirectUrl + '/--/';
+} else
+if (redirectUrl === expoScheme) {
+  // no change required
+} else {
+  // for expo client
+  redirectUrl = redirectUrl + '/'
+}
 const updatedConfig = {
   ...config,
     "oauth":{
       ...config.oauth,
+      redirectSignIn:redirectUrl,
+      redirectSignOut:redirectUrl,
       urlOpener:urlOpenerExpo
 
     }
 }
+
 Amplify.configure(updatedConfig);
 Auth.configure(updatedConfig);
 
@@ -128,8 +130,8 @@ function Home(props) {
           iconName = focused
             ? 'home'
             : 'home-outline';
-        } else if (route.name === 'Explore') {
-          iconName = focused ? 'search' : 'search-outline';
+        } else if (route.name === 'Create') {
+          iconName = focused ? 'create' : 'create-outline';
         } else if (route.name ==="Profile") {
           iconName = focused ? "person":"person-outline";
         }
@@ -137,10 +139,11 @@ function Home(props) {
       },
       tabBarActiveTintColor: 'tomato',
       tabBarInactiveTintColor: 'gray',
+      gestureEnabled: false,
     })}
     > 
     <Tab.Screen name="Feed" component={Feed}/>
-    <Tab.Screen name="Explore" component={Explore} />
+    <Tab.Screen name="Create" component={Create}/>
      <Tab.Screen name="Profile" component={Profile}/>
     </Tab.Navigator>
     </AuthContext.Provider >
@@ -148,71 +151,502 @@ function Home(props) {
   );
 };
 
+function CreateStep(props) {
+  const [editable,setEditable] = useState(true);
+  const [step,setStep] = useState('');
+  const [error,setError] = useState(false);
 
-function Explore ({navigation}) {
-  const [search,setSearch] = useState("");
-  function updateSearch(search) {
-    setSearch(search);
+  function handleStep(){
+    if (!editable) {
+      setEditable(true);
+      return;
+    } 
+    if (step=="") {
+      setError(true);
+    } else {
+      setEditable(false);
+      setError(false);
+      props.handleStep({description:step},props.index)
+    }
   }
   return (
-    <ScrollView>
-     <SearchBar
-        placeholder="Type Here..."
-        onChangeText={updateSearch}
-        value={search}
-        lightTheme={true}
-      />
-    </ScrollView>
+    <View style={{flexDirection:"row"}}>
+      <View style={{width:"80%",flexDirection:"column"}}>
+      <TextInput multiline 
+      onChangeText={setStep}
+      value={step}
+      placeholder={"Step "+(props.index+1)}
+      editable={editable}
+      style={editable?styles.input:styles.disabledInput}
+      >
+
+      </TextInput>
+      {error?<Text>This field is required</Text>:null}
+      </View>
+      
+      <TouchableOpacity style={{padding:5}} onPress={()=>handleStep()}>
+    <Ionicons
+    name={editable?'checkmark':"pencil"}
+    size={24}
+    color={COLOR.red} />
+    </TouchableOpacity>
+      
+    </View>
   )
 }
+function CreateIngredient(props) {
+
+  const [editable,setEditable] = useState(true);
+  const [editing,setEditing] = useState(true);
+ const [name,setName] = useState("");
+ const [amount,setAmount] = useState("");
+ const [unit,setUnit] = useState("");
+  const [error,setError] = useState(false);
+
+  function handleIngredient() {
+    if (!editable) {
+      setEditable(true);
+      return
+    }
+    if (name=="") {
+      setError(true)
+    } else {
+      setError(false);
+      setEditable(false);
+      props.handleIngredient({name:name,amount:amount,unit:unit},props.index)
+    }
+  }
+return (
+  <SafeAreaView style={{flexDirection:"row"}}>
+    <View style={{flexDirection:"column",width:"30%"}}>
+      <TextInput
+      onChangeText={setName}
+      value={name}
+      placeholder={"Ingredient "+(props.index+1)}
+      style={editable?styles.input:styles.disabledInput}
+      editable={editable}
+      >
+      </TextInput>
+      {error?<Text>This field is required</Text>:null}
+
+    </View>
+    <View style={{width:"30%"}}>
+    <TextInput
+      onChangeText={setAmount}
+      value={amount}
+      placeholder="Amount"
+      style={editable?styles.input:styles.disabledInput}
+      editable={editable}
+
+      >
+      </TextInput>
+    </View>
+    <View style={{width:"20%"}}>
+    <TextInput
+      onChangeText={setUnit}
+      value={unit}
+      placeholder="Unit"
+      style={editable?styles.input:styles.disabledInput}
+      editable={editable}
+
+      >
+      </TextInput>
+    </View>
+    
+      
+    
+    <TouchableOpacity style={{padding:5}} onPress={()=>handleIngredient()}>
+ <Ionicons
+name={editable?'checkmark':"pencil"}
+size={24}
+color={COLOR.red} />
+ </TouchableOpacity>
+  </SafeAreaView>
+)
+
+}
+function Create(props) {
+  const [authState,setAuthState] = useContext(AuthContext);  
+  const [submitted,setSubmitted] = useState(false);
+  const { control, handleSubmit, reset,formState: { errors } } = useForm();
+  const [image,setImage] = useState("");
+  const [ingredients,setIngredients] = useState([{
+    name:'',amount:'',unit:''
+  }]);
+
+
+
+  const [steps,setSteps] = useState([
+    {description:"",image:""}
+  ])
+
+  function submitAnother() {
+    setImage("");
+    setSubmitted(false);
+    setIngredients([{
+      name:'',amount:'',unit:''
+    }]);
+    setSteps([
+      {description:"",image:""}
+    ]);
+    reset();
+    
+  }
+
+  const onSubmit = async(data) => {
+    if (!authState.signedIn) {
+      Alert.alert("Sign in first");
+      return;
+    }
+    const user = await createUser(authState);
+    const newData = {...data,
+      caseInsensitiveName:data.name.toLowerCase(),
+      tag:data.tag!=undefined?data.tag.toLowerCase().split(","):[],
+      ingredient:ingredients,
+      step:steps,
+      image:image,
+      creator:user.id,
+    };
+    try {
+      // const saved = await DataStore.save(new Item(
+      //   newData
+      // ));
+
+      const saved = await API.graphql(graphqlOperation(mutations.createItem, {input: newData})); 
+
+    } catch(e) {
+      console.log(e);
+    }
+    setSubmitted(true);
+    
+
+  };
+  function handleImage(url) {
+    setImage(url);
+  }
+  function handleStep(step,index) {
+    steps[index] = step;
+    setSteps([...steps]);
+  }
+  function handleIngredient(res,index) {
+    
+    ingredients[index] = res;
+    console.log(ingredients);
+    setIngredients([...ingredients]);
+  }
+  function addStepInput() {
+    const length = steps.length;
+    steps.push("");
+    setSteps([...steps]);
+  }
+
+  function addIngredientInput() {
+    const length = ingredients.length;
+    ingredients.push({
+      name:'',amount:'',unit:''
+    });
+    setIngredients([...ingredients]);
+  }
+  function deleteStep(index) {
+    if (steps.length==1) {
+      Alert.alert("Cannot delete");
+      return;
+    }
+    setSteps([...steps.slice(0, index), ...steps.slice(index + 1)])
+  }
+  function deleteIngredient(index) {
+    if (ingredients.length==1) {
+      Alert.alert("Cannot delete");
+      return;
+    }
+    setIngredients([...ingredients.slice(0, index), ...ingredients.slice(index + 1)])
+  }
+  if (submitted) {
+    return (<SafeAreaView>
+      <Button title="Submit Another Recipe" onPress={()=>submitAnother()}></Button>
+    </SafeAreaView>)
+  }
+  return (
+    <SafeAreaView>
+      <ScrollView>
+      <Controller
+        control={control}
+        rules={{
+         required: true,
+        }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+          placeholder="Recipe Title"
+            style={styles.input}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+          />
+        )}
+        name="name"
+        defaultValue=""
+      />
+      {errors.name && <Text>This is required.</Text>}
+
+      <Controller
+        control={control}
+        rules={{
+         maxLength: 100,
+        }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+          multiline={true}
+          placeholder="Description"
+            style={styles.input}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+          />
+        )}
+        name="description"
+        defaultValue=""
+      />
+            <Controller
+        control={control}
+        rules={{
+         maxLength: 100,
+        }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+          multiline={true}
+          placeholder="Tags (separate with comma)"
+            style={styles.input}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+          />
+        )}
+        name="tag"
+        defaultValue=""
+      />
+       <View>
+        {ingredients.map((item,index)=> {
+          return(
+            <View style={{flexDirection:"row"}}  key={index}>
+      <CreateIngredient handleIngredient={handleIngredient} index={index}></CreateIngredient>
+      <TouchableOpacity style={{padding:5}} onPress={()=>deleteIngredient(index)}>
+ <Ionicons
+name={'trash-sharp'}
+size={24}
+color={COLOR.red} />
+ </TouchableOpacity>
+      </View>)
+
+            
+        })}
+      </View>
+      <TouchableOpacity style={{padding:5}} onPress={()=>addIngredientInput()}>
+ <Ionicons
+name={'add-circle'}
+size={24}
+color={COLOR.red} />
+ </TouchableOpacity>
+     
+     <View key="step-area">
+       {steps.map((item,index)=> {
+         return(
+           <View key={index} style={{flexDirection:"row"}}>
+               <CreateStep index={index} handleStep={handleStep}></CreateStep>
+               <TouchableOpacity style={{padding:5}} onPress={()=>deleteStep(index)}>
+                  <Ionicons
+                  name={'trash-sharp'}
+                  size={24}
+                  color={COLOR.red} />
+                  </TouchableOpacity>
+             </View>
+         
+       )
+       })}
+       <TouchableOpacity style={{padding:5}} onPress={()=>addStepInput()}>
+ <Ionicons
+name={'add-circle'}
+size={24}
+color={COLOR.red} />
+ </TouchableOpacity>
+
+
+     </View>
+     
+     <CreateImage handleImage={handleImage}></CreateImage>
+
+      <Button title="Submit" onPress={handleSubmit(onSubmit)} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function CreateImage(props) {
+  const [image,setImage] = useState("");
+  const [url,setUrl] = useState("");
+  const [imageComponent,setImageComponent] = useState(
+    null
+  )
+    
+  function handleImage(e) {
+    setImage(e);
+    try {
+       URL = new URL(e);
+      setUrl(e);
+      props.handleImage(e);
+    } catch (_) {
+      console.log(_);
+    }
+  }
+  return(
+    <View>
+<TextInput
+    onChangeText={(e)=>handleImage(e)}
+    value={image}
+    style={styles.input}
+    placeholder="image url"
+    ></TextInput>
+    {url!=""?<Image source={{uri:url}} style={styles.image}/>:null}
+    
+    
+    </View>
+    
+  )
+}
+
+// function Create(props) {
+
+//   const [name,setName] = useState("");
+//   const [time,setTime] = useState('');
+//   const [ingredient,setIngredient] = useState("");
+//   const [amount,setAmount] = useState("");
+//   const [unit,setUnit] = useState("");
+
+
+//   const [ingredients,setIngredients] = useState([])
+//   const [steps,setSteps] = useState([])
+//   function handleIngredient () {
+//     if (ingredient=="") {
+//     Alert.alert("Can't be empty")
+//     } else {
+//       ingredients.push({
+//         ingredient:ingredient,
+//         amount:amount,
+//         unit:unit
+//       });
+//       setIngredients(ingredients);
+//       setIngredient("");
+//       setAmount("");
+//       setUnit("");
+//     }
+    
+//   }
+
+  
+//   return (
+//     <SafeAreaView>
+//       <ScrollView>
+//       <Button
+//   title="Upload from website"
+//   type="clear"
+// />
+// <TextInput
+//         style={styles.input}
+//         onChangeText={value=>setName(value)}
+//         value={name}
+//         placeholder="Recipe name"
+//       />
+//       <TextInput
+//         style={styles.input}
+//         onChangeText={value=>setTime(value)}
+//         value={time}
+//         placeholder="Time"
+//         keyboardType="numeric"
+//       />
+      
+//       <ListItem bottomDivider >
+//     <ListItem.Content style={{flexDirection:"row"}}>
+
+// <View style={{flex:3,justifyContent:"flex-start",alignItems:"flex-start",textAlign:"center"}}>
+// <ListItem.Input placeholder="Ingredient" value={ingredient}
+//       onChangeText={value=>setIngredient(value)}></ListItem.Input>
+// </View>
+// <View style={{flex:2}}>
+// <ListItem.Input placeholder="Amount" value={amount}
+//       onChangeText={value=>setAmount(value)}></ListItem.Input>
+// </View>
+// <View style={{flex:1}}>
+// <ListItem.Input placeholder="Unit" value={unit}
+//       onChangeText={value=>setUnit(value)}></ListItem.Input>
+
+// </View>
+     
+        
+      
+     
+//     </ListItem.Content>
+//   </ListItem>
+//   <TouchableOpacity style={{padding:5}} onPress={()=>handleIngredient()}>
+//       <Ionicons
+//   name='add-circle'
+//   size={24}
+//   color={COLOR.red} />
+//       </TouchableOpacity>
+
+
+//       </ScrollView>
+
+
+//     </SafeAreaView>
+//   )
+
+// }
+
 async function addRecipes(recipe_file) {
 
   try {
-    await deleteDataStoreItem();
-    const recipes = await DataStore.query(Item);
-    const recipeNames = recipes.map(item=>item.name);
-    await recipe_file.map((item,i)=> {
-      if (item.name in recipeNames) {
-
-      } else {
-        DataStore.save(
-          new Item(item)
-        )
-      }
-    })
+    // await deleteDataStoreItem();
+    // const recipes = await DataStore.query(Item);
+    
+    // const recipeNames = recipes.map(item=>item.name);
+    for (let i = 0; i < recipe_file.length; i++) {
+      const item = recipe_file[i];
+      const newItem = await API.graphql({ query: mutations.createItem, variables: {input: item}});
+    }
 
   } catch(e) {console.log(e)}
 }
 
 async function deleteDataStoreItem() {
   
-  const deleted = await DataStore.delete(Item, Predicates.ALL);
+  try {
+    const deleted = await DataStore.delete(Item, Predicates.ALL);
+    const deleted1 = await DataStore.delete(UserRecipe, Predicates.ALL);
+    const deleted2 = await DataStore.delete(User, Predicates.ALL);
+
+    await DataStore.clear();
   console.log("Deleted All Items");
+  } catch(e) {console.log(e)}
+
 }
 
 async function createUser(userItem)
 
 {
   try {
-    const user = DataStore.query(User,c=>c.username("eq",userItem.username))
-    if (user.length===0) {
-  const newUser = await DataStore.save(
-    new User(
-      {
-        username:userItem.username,
-        email:userItem.email,
-        provider:userItem.username.startsWith("facebook")?"facebook":"cognito",
-      }
-    )
-  )
-}
-return user;
+    const user = {id:userItem.username,email:userItem.email,username:userItem.username,
+    provider:userItem.username.startsWith("facebook")?"facebook":"cognito"
+  };
+  const originalUser = await API.graphql({ query: queries.getUser, variables: { id: userItem.username }});
+  if (originalUser.data) {
+    return originalUser.data.getUser;
+  } else {
+    const newUser = await API.graphql(graphqlOperation(mutations.createUser, {input: user}));
+    return newUser.data.createUser;
+  }
 
   } catch(e) {console.log(e)
   
   }
-
-
 
 }
 function UserStatus (props){
@@ -264,11 +698,6 @@ const navigation = props.nav;
       email:user.signInUserSession.idToken.payload.email,
       signedIn:true
     });
-    createUser({
-      username:user.signInUserSession.accessToken.payload.username,
-      email:user.signInUserSession.idToken.payload.email,
-      signedIn:true
-    });
   }
     )
 
@@ -291,6 +720,12 @@ const navigation = props.nav;
       icon: 'heart',
       link:true,
       navigation:"Liked"
+    },
+    {
+      title: "Created Recipes",
+      icon: 'create',
+      link:true,
+      navigation:"Created"
     },
     
   ]
@@ -329,9 +764,7 @@ fontStyle={{color:"white"}}
 </View>
 
       <SocialIcon style={{backgroundColor:COLOR.grey}}
-  button onPress={()=>Auth.signOut({global:true})} title="Sign Out"/>
-
-      <Button title="Test" onPress={()=>addRecipes(newRecipe_json)}></Button>
+  button onPress={()=>Auth.signOut()} title="Sign Out"/>
       </View>
    
     ) 
@@ -348,16 +781,49 @@ function Profile(props) {
 
 
 }
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function Explore({route,navigation}) {
+
+  
+  const [myTag,changeTag] = useState("");
+  useEffect(()=> {
+    changeTag(route.params.tag);
+  })
+  if (myTag=="") {
+
+    return (
+
+      <View>
+
+        <Text>Explore</Text>
+      </View>
+    )
+  }
+  return (
+    <View>
+      <HomeFlatList_ key={"tag"+myTag} nav={navigation} saved={false} created={false} searchKey={"tag:"+myTag}></HomeFlatList_>
+    </View>
+  )
+
+}
 function DetailsScreen({route,navigation}) {
+
+  function handleTag(tagItem) {
+    navigation.navigate("Explore",{
+      tag:tagItem
+    })
+  }
 try {
   const {recipe} = route.params;
-  console.log(recipe.caseInsensitiveName);
-
+  
   return (
     <View key={recipe.id}>
        <ScrollView>
         <Image 
-        source={{uri:recipe.image}} 
+        source={{uri:recipe.image?recipe.image:null}} 
         defaultSource={require("./default_food_img.jpg")} 
         resizeMode="cover" style={styles.image}>
       
@@ -368,8 +834,10 @@ try {
       <View className="tags" style={styles.tagList}>
         {recipe.tag.map(
           (item,index)=>{
-            return (<TouchableOpacity style={styles.tag} key={index}>
-              <Text style={styles.recipeTagText}>{item}</Text>
+            return (<TouchableOpacity style={styles.tag} key={index}
+              onPress={()=>handleTag(item)}
+            >
+              <Text style={styles.recipeTagText}>{capitalizeFirstLetter(item)}</Text>
             </TouchableOpacity>)
           }
         
@@ -425,15 +893,26 @@ try {
 
 
 
-function Feed({navigation}) {
+function Feed({route,navigation}) {
   const [authState,setAuthState] = useContext(AuthContext);
 
   return (
     // <HomeFlatlist nav={navigation}/>
     <AuthContext.Provider value={[authState,setAuthState]}>
-    <HomeFlatList_ nav={navigation} />
+    <HomeFlatList_ nav={navigation} saved={false} created={false} searchKey={""}/>
     </AuthContext.Provider>
   )
+}
+
+function Created({navigation}) {
+  const [authState,setAuthState] = useContext(AuthContext);
+
+  return (
+    <AuthContext.Provider value={[authState,setAuthState]}>
+    <HomeFlatList_ nav={navigation} saved={false} created={true} searchKey={""}/>
+    </AuthContext.Provider>
+  )
+  
 }
 function Liked({navigation}) {
 
@@ -441,7 +920,7 @@ function Liked({navigation}) {
 
   return (
     <AuthContext.Provider value={[authState,setAuthState]}>
-    <HomeFlatList_ nav={navigation} saved={true}/>
+    <HomeFlatList_ nav={navigation} saved={true} created={false} searchKey={""}/>
     </AuthContext.Provider>
   )
 }
@@ -494,74 +973,131 @@ const client = new AWSAppSyncClient({
 function HomeFlatList_ (props) {
 
   const [authState,setAuthState] = useContext(AuthContext);
-
  const [loading,setLoading] = useState(false);
   const [saved,setSaved] = useState([]);
+  const [created,setCreated] = useState([]);
   const [data,setData] = useState([]);
   const [savedKeys,setSavedKeys] = useState([]);
 const [isRefreshing,setRefreshing] = useState(false);
-const isMountedRef = useRef(null);
-const [search,setSearch] = useState("");
+const isMountedRef = useRef(true);
+const [search,setSearch] = useState(props.searchKey);
+// useEffect(()=> {
+//   isMountedRef.current = true;
+//   updateSearch(search);
+//   console.log(search);
+//   return()=>isMountedRef.current=false
+// })
 function updateSearch(search) {
   if(search==="") {
     fetchRecipesDataStore(authState);
-  } else {
     
-    queryRecipes(search.trim().toLowerCase())
+  } else {
+    queryRecipes(search.trim().toLowerCase());
   }
   setSearch(search);
 }
 async function queryRecipes(string) {
-  
-  if (props.saved==false ){
-    try{
+  if(!isMountedRef.current) {
+    return;
+  }
 
-      const recipesBeginWith = await DataStore.query(Item,c=>c.caseInsensitiveName("beginsWith",string),{
-        page: 0,
-        limit: 100
-      });
-      const recipesContain = await DataStore.query(Item,c=>c.caseInsensitiveName("contains",string),{
-        page: 0,
-        limit: 100
-      });
-      const beginKeys = recipesBeginWith.map(item=>item.id);
-      const recipesFinal = recipesContain.filter(item=>!beginKeys.includes(item.id));
-      const recipesTotal = recipesBeginWith.concat(recipesFinal);
-      setData(recipesTotal);
+  if ((props.saved==false)&&(props.created==false))
+  
+  {
+     try{
+      
+      if (string.startsWith("tag:")) {
+        const tag_string = string.split(":")[1]
+        
+        const { data: { listItems: { items: tagContains, nextToken } } }
+         = await API.graphql({query:listItems,variables:{
+          filter:{tag:{contains:tag_string}}
+        }});
+        
+
+        await fetchLiked(authState,tagContains);
+
+      } else {
+        const { data: { listItems: { items: recipesBeginWith, nextToken1 } } }
+         = await API.graphql({query:listItems,variables:{
+          filter:{caseInsensitiveName:{beginsWith:string}}
+        }});
+        const { data: { listItems: { items: recipesContain, nextToken2 } } }
+         = await API.graphql({query:listItems,variables:{
+          filter:{caseInsensitiveName:{contains:string}}
+        }});
+        
+
+        // const recipesBeginWith = await DataStore.query(Item,c=>c.caseInsensitiveName("beginsWith",string),{
+        //   page: 0,
+        //   limit: 100
+        // });
+        // const recipesContain = await DataStore.query(Item,c=>c.caseInsensitiveName("contains",string),{
+        //   page: 0,
+        //   limit: 100
+        // });
+        const beginKeys = recipesBeginWith.map(item=>item.id);
+        const recipesFinal = recipesContain.filter(item=>!beginKeys.includes(item.id));
+        const recipesTotal = recipesBeginWith.concat(recipesFinal);
+        setData(recipesTotal);
+        await fetchLiked(authState,recipesTotal);
+
+      }
+      
   }catch(e) {console.log(e)}
 }
 
-   else {
+   else if (props.saved==true) {
 
-    const savedStartsWith = saved.filter(
+    try {
+      
+        const  savedStartsWith= saved.filter(
+          item=>item.caseInsensitiveName.startsWith(string)
+        )
+        const savedContains = saved.filter(
+          item=>item.caseInsensitiveName.includes(string)
+        )
+  
+       
+  
+        
+        const beginKeys = savedStartsWith.map(item=>item.id);
+        const recipesFinal = savedContains.filter(item=>!beginKeys.includes(item.id));
+        var recipesTotal = savedStartsWith.concat(recipesFinal);
+        await fetchLiked(authState,recipesTotal);
+
+      
+      
+    }
+
+    catch(e) {console.log(e)} 
+  } else if (props.created==true) {
+    console.log("!!!!");
+    const  savedStartsWith= created.filter(
       item=>item.caseInsensitiveName.startsWith(string)
     )
-    const savedContains = saved.filter(
+    const savedContains = created.filter(
       item=>item.caseInsensitiveName.includes(string)
     )
+
+   
+
+    
     const beginKeys = savedStartsWith.map(item=>item.id);
     const recipesFinal = savedContains.filter(item=>!beginKeys.includes(item.id));
-    const recipesTotal = recipesBeginWith.concat(recipesFinal);
-    setSaved(recipesTotal);  }
-}
+    var recipesTotal = savedStartsWith.concat(recipesFinal);
+    await fetchCreated(authState,recipesTotal);
+
   
-   
- 
-
-
-
-
-  // useEffect(() => {
-  //   isMountedRef.current = true;
-  //   fetchRecipesDataStore();
-
-
-  //   return () => isMountedRef.current = false;
-  // },[]);
-
+  
+    
+  }
+    
+}
   useEffect(() => {
+    isMountedRef.current = true;
+
     Hub.listen("auth", (data) => {
-      isMountedRef.current = true;
       if(data!=null) {        
         try {
           var event = data.payload.event
@@ -595,7 +1131,6 @@ async function queryRecipes(string) {
         
       }
       
-      
     });
     Auth.currentAuthenticatedUser()
     .then(user => 
@@ -604,30 +1139,33 @@ async function queryRecipes(string) {
       email:user.signInUserSession.idToken.payload.email,
       signedIn:true
     });
-    createUser({
-      username:user.signInUserSession.accessToken.payload.username,
-      email:user.signInUserSession.idToken.payload.email,
-      signedIn:true
-    });
-    fetchRecipesDataStore(
-      {
-        username:user.signInUserSession.accessToken.payload.username,
-        email:user.signInUserSession.idToken.payload.email,
-        signedIn:true
-      }
-    )
 
   }
-    ).catch((e)=>console.log("Not signed in"))
-    fetchRecipesDataStore({signedIn:false})
+    ).catch((e)=>console.log("Not signed in"));
+    
+    if (search=="") {
+      fetchRecipesDataStore(authState);
 
+    } else {
+      queryRecipes(search.trim().toLowerCase());
+    }
+    return()=> isMountedRef.current = false;
   },[]);
 
   useEffect(()=> {
-fetchRecipesDataStore(authState);
+    isMountedRef.current = true;
+if (search=="") {
+  fetchRecipesDataStore(authState);
+} else {
+  updateSearch(search);
+}
+return()=> isMountedRef.current = false;
   },[authState])
 
 onRefresh = async() => {
+  if(!isMountedRef.current) {
+    return;
+  }
 
     if (loading) {
       Alert.alert("Try Again Later")
@@ -636,7 +1174,7 @@ onRefresh = async() => {
               setRefreshing(true);
 
               if(authState.signedIn) {
-                fetchRecipesDataStore(authState);
+                search==""?fetchRecipesDataStore(authState):updateSearch(search);
 
               } 
 
@@ -644,32 +1182,93 @@ onRefresh = async() => {
 
              }
   }
+
+  async function fetchCreated(auth,data=data) {
+    if(!isMountedRef.current) {
+      return;
+    }
+    try {
+      const keys = data.map(item=>item.id);
+      const { data: { listItems: { items: createdItems, nextToken } } }
+         = await API.graphql({query:listItems,variables:{
+          filter:{creator:{eq:auth.username}}  
+        }});
+      // const createdItems = (await DataStore.query(Item)).filter(
+      //   pe=>(pe.creator===user.id)
+      // );
+      
+      const newCreated = createdItems.filter(i=>keys.includes(i.id)&&i._deleted!=true);
+      setCreated(newCreated);
+    } catch(e) {console.log(e)}
+  }
+  async function fetchLiked(auth,data=data) {
+    if(!isMountedRef.current) {
+      return;
+    }
+try {
+  // const { data: { listItems: { items: likedItems, nextToken } } }
+  //        = await API.graphql(graphqlOperation(queries.listUserRecipes,{
+  //         filter:{and:
+  //         [
+  //           {userID:{eq:auth.username}},
+  //           {liked:{eq:true}}
+  //         ]}
+  //       }));
+         const { data: { listUserRecipes: { items: likedUserRecipes, nextToken } } }
+         = await API.graphql({query:queries.listUserRecipes,variables:{
+          filter:{and:
+          [
+            {userID:{eq:auth.username}},
+            {liked:{eq:true}}
+          ]}
+        }});
+    //   const likedItems = (await DataStore.query(UserRecipe)).filter(
+    //     pe => (pe.user.username===auth.username)&&(pe.liked===true)
+    // ).map(pe => pe.recipes);    
+    const keys = likedUserRecipes.map(item=>item.recipeID);
+    setSavedKeys(keys);
+    const newSaved = data.filter(i=>keys.includes(i.id));
+    setSaved(newSaved);
+    const newData = data.map(item=>{
+      if (keys.includes(item.id)) {
+        return {...item,favorited:true}
+      } else {
+        return {...item,favorited:false}
+      }
+    })
+    setData(newData);
+} catch(e) {console.log(e)}
+    
+  }
   async function fetchRecipesDataStore (auth) {
+    if(!isMountedRef.current) {
+      return;
+    }
     
     try {
       
 
       if (auth.signedIn===false) {
-        const mess = await DataStore.query(Item);
-        setData(mess);
+        const { data: { listItems: { items: mess, nextToken } } }
+         = await API.graphql({query:listItems})
+        if (mess.length===0) {
+          console.log("NO recipes in the cloud")
+          //if there is internet,
+          try {
+            addRecipes(newRecipe_json);
+          } catch(e) {console.log(e);
+            setData(newRecipe_json);}
+          
+        } else {
+          setData(mess);
+        }
       return;
       } else {
-        const mess = await DataStore.query(Item);
+        const { data: { listItems: { items: mess, nextToken } } }
+         = await API.graphql({query:listItems})
         setData(mess);
-        const likedItems = (await DataStore.query(UserRecipe)).filter(
-              pe => (pe.user.username===auth.username)&&(pe.liked===true)
-          ).map(pe => pe.recipes);
-          setSaved(likedItems);
-          const keys = likedItems.map(item=>item.id)
-          setSavedKeys(keys);
-          const newData = mess.map(item=>{
-            if (keys.includes(item.id)) {
-              return {...item,favorited:true}
-            } else {
-              return {...item,favorited:false}
-            }
-          })
-          setData(newData);
+        fetchLiked(authState,mess);
+        fetchCreated(authState,mess);
       }
     //   
       setLoading(false);
@@ -679,50 +1278,59 @@ onRefresh = async() => {
   }
   
   likeItem = async(recipe_id) => {
-    if (authState.signedIn==false) {
-      Alert.alert("Sign in first");
+    if(!isMountedRef.current) {
       return;
     }
+    isMountedRef.current = true;
+    if (authState.signedIn==false) {
+      Alert.alert("Sign in first");
+      return()=>isMountedRef.currnet = false
+    }
+    const newData = data.map(item=>{
+      if(item.id ===recipe_id) {
+        return {...item,favorited:!item.favorited}
+      } return item;
+    }
+      )
+    setData(newData); 
     try {
-      const userItems = await DataStore.query(User,c=>c.username("eq",authState.username));
       
-      const recipeItem = await DataStore.query(Item,recipe_id);
-    const originalItems = (await DataStore.query(UserRecipe)).filter(
-        pe => (pe.user.username===authState.username)&&(pe.recipes.id===recipe_id));
-        let originalItem;
-        if (originalItems.length===0) {
+      const userItem = await createUser(authState);
+      
+      const recipeItem = await API.graphql(graphqlOperation(queries.getItem, { id: recipe_id }));
+      // const recipeItem = await DataStore.query(Item,recipe_id);
+      const { data: { listUserRecipes: { items: originalItems, nextToken } } }
+      = await API.graphql({query:queries.listUserRecipes,variables:{
+       filter:{and:
+       [
+         {userID:{eq:authState.username}},
+         {recipeID:{eq:recipe_id}}
+       ]}
+     }});
 
-          originalItem = await DataStore.save(
-            new UserRecipe ({
-            user:userItems[0],
-            recipes:recipeItem,
-            liked:true,
-          }));
-        // saved.push(recipeItem);
-        // setSaved(saved);
-        // setSavedKeys(saved.map(item=>item.id));
-        console.log(originalItem.liked);
-        const newData = data.map(item=>{
-          if(item.id ===recipe_id) {
-            return {...item,favorited:true}
-          } return item;
-        }
-          )
-        setData(newData);
+    // const originalItems = (await DataStore.query(UserRecipe)).filter(
+    //     pe => (pe.user.username===authState.username)&&(pe.recipes.id===recipe_id));
+        let originalItem;
+        const detail = {
+          userID:userItem.id,
+          recipeID:recipe_id,
+          liked:true
+        };
+
+        if (originalItems.length===0) {
+          
+          const originalItem= await API.graphql(graphqlOperation(mutations.createUserRecipe, {input: detail})); // equivalent to above example
+        
 
         } else {
           originalItem = originalItems[0];
-          const updatedItem = await DataStore.save(
-            UserRecipe.copyOf(originalItem, updated => {
-              updated.liked = !originalItem.liked;
-            })
-          );
-          console.log(originalItem.liked);
+          const detail = {id:originalItem.id,
+            recipeID:originalItem.recipeID,
+            userID:originalItem.userID,
+            _version:originalItem._version,
+            liked:!originalItem.liked}
+          if (!originalItem.liked) {
 
-          if (updatedItem.liked) {
-            // saved.push(recipeItem);
-            // setSaved(saved);
-            // setSavedKeys(saved.map(item=>item.id));
             const newData = data.map(item=>{
               if(item.id ===recipe_id) {
                 return {...item,favorited:true}
@@ -731,9 +1339,6 @@ onRefresh = async() => {
               )
             setData(newData);
           } else {
-            // const newSaved = saved.filter(item=>item.id!=recipeItem.id);
-            // setSaved(newSaved);
-            // setSavedKeys(newSaved.map(item=>item.id));
             const newData = data.map(item=>{
               if(item.id ===recipe_id) {
                 return {...item,favorited:false}
@@ -741,45 +1346,62 @@ onRefresh = async() => {
             }
               )
             setData(newData);
-
-
           }
+          const updatedItem = await API.graphql({ query: mutations.updateUserRecipe, variables: {input: detail}});
+
+
+          
         }
      
     } 
     catch(e) {console.log(e)}
 
-    setLoading(false);
-
+    return ()=> isMountedRef.current = false
   }
 
 
   async function removeItem(item) {
-
-    const newSaved = saved.filter(i=>i.id!=item.id);
+    if(!isMountedRef.current) {
+      return;
+    }
+    if (props.saved) {
+      const newSaved = saved.filter(i=>i.id!=item.id);
     setSaved(newSaved);
     setSavedKeys(newSaved.map(item=>item.id));
     try {
-      const originalItems = (await DataStore.query(UserRecipe)).filter(
-        pe => (pe.user.username===authState.username)&&(pe.recipes.id===item.id));
-      if (originalItems.length===0) {
-        console.log("Already removed")
-      } else {
-  
-        const originalItem = originalItems[0];
-        const updatedItem = await DataStore.save(
-          UserRecipe.copyOf(originalItem, updated => {
-            updated.liked = false;
-          })
-        );
-        console.log("Removed Item");
-      }
-      
-      
-      Alert.alert("Removed");
+      const { data: { listUserRecipes: { items: originalItems, nextToken } } }
+      = await API.graphql({query:queries.listUserRecipes,variables:{
+       filter:{and:
+       [
+         {userID:{eq:authState.username}},
+         {recipeID:{eq:item.id}}
+       ]}
+     }});
+     const originalItem = originalItems[0]
+     const detail = {id:originalItem.id,
+    userID:originalItem.userID,
+  recipeID:originalItem.recipeID,
+  _version:originalItem._version,
+liked:false}
+      const updatedItem = await API.graphql({ query: mutations.updateUserRecipe, variables: {input: detail
+      }});
+      Alert.alert("Unliking this item");
     } catch(e) {console.log(e)}
+    } else if (props.created) {
+      const newCreated = created.filter(i=>i.id!=item.id);
+      setCreated(newCreated);
+
+      try {
+        const deletedItem = await API.graphql({query:mutations.deleteItem,variables:{input:
+          {id:item.id,
+          _version:item._version}}})
+        Alert.alert("Deleted this item");
+     } catch(e) {console.log(e)}
     }
+  }
+
     
+   
   function renderSavedItem(item) {
 
     return (<View style={styles.card}>
@@ -791,13 +1413,13 @@ onRefresh = async() => {
       <View style={{flexDirection:"row"}}>
         <View  style={styles.container}>
         <ImageBackground 
-        source={{uri:item.image}} resizeMode="cover" style={styles.imageBackground}>
+        source={{uri:item.image?item.image:null}} resizeMode="cover" style={styles.imageBackground}>
       
       <View style={styles.gradient}>
-      {/* <TouchableOpacity style={styles.heart} onPress={()=>removeItem(item)}> 
+      <TouchableOpacity style={styles.heart} onPress={()=>removeItem(item)}> 
         <Ionicons name="trash-outline" size={20} 
         color="white"></Ionicons>
-      </TouchableOpacity> */}
+      </TouchableOpacity>
       <Text style={styles.text}>{item.name}</Text>
     
       </View>
@@ -814,6 +1436,7 @@ onRefresh = async() => {
   }
 
   function renderItem(item,index) {
+
     // console.log(state.saved);
     // const savedIDs = state.saved.map(item=>item.id);
     return (<View style={styles.card}>
@@ -825,7 +1448,7 @@ onRefresh = async() => {
   <View style={{flexDirection:"row"}}>
     <View  style={styles.container}>
     <ImageBackground 
-    source={{uri:item.image}} resizeMode="cover" style={styles.imageBackground}>
+    source={{uri:item.image?item.image:null}} resizeMode="cover" style={styles.imageBackground}>
   
   <View style={styles.gradient}>
   <TouchableOpacity style={styles.heart} onPress={()=>likeItem(item.id)}> 
@@ -845,6 +1468,27 @@ onRefresh = async() => {
   </TouchableOpacity>
 </View>
 )
+  }
+
+  if (!isMountedRef.current) {
+    return(<Text>Loading</Text>)
+  }
+  if (props.created) {
+    return (
+      <View><FlatList
+    ListHeaderComponent={<SearchBar
+      placeholder="Type Here..."
+      onChangeText={updateSearch}
+      value={search}
+      lightTheme={true}
+    />}
+    refreshing={isRefreshing}
+    onRefresh={()=>onRefresh()}
+    data={created}
+    renderItem={({item}) => renderSavedItem(item)}
+    >
+      </FlatList></View>
+    )
   }
   if (props.saved==true) {
     return (<View><FlatList
@@ -937,11 +1581,6 @@ const App =() => {
       email:user.signInUserSession.idToken.payload.email,
       signedIn:true
     });
-    createUser({
-      username:user.signInUserSession.accessToken.payload.username,
-      email:user.signInUserSession.idToken.payload.email,
-      signedIn:true
-    });
   }
     )
     .catch(() => 
@@ -964,12 +1603,20 @@ const App =() => {
          <Stack.Screen
   name="Details"
   component={DetailsScreen}
-  initialParams={{ recipe: recipe[0] }}
+  initialParams={{ recipe: newRecipe_json[0] }}
 />
+
+<Stack.Screen name="Explore" component={Explore} initialParams={{tag:""}}/>
+
 <Stack.Screen
   name="Liked"
   component={Liked}
 />
+<Stack.Screen
+  name="Created"
+  component={Created}
+/>
+
       </Stack.Navigator>
      
       </AuthContext.Provider >
@@ -983,8 +1630,22 @@ const themeColorRed = "#EB594C";
 const themeColorWhite = "#F1E5E0";
 const themeColorGrey = "#A59495";
 const styles = StyleSheet.create({
+  ingredientBubble: {borderWidth:1,borderRadius:18,backgroundColor:COLOR.lightRed,borderColor:COLOR.brown,
+    fontSize:20,padding:5},
+
   card: {
     marginBottom:10,
+  },
+  disabledInput: {
+    height: 40,
+    margin: 5,
+    padding: 5,
+  },
+  input: {
+    height: 40,
+    margin: 5,
+    borderBottomWidth: 1,
+    padding: 5,
   },
  container: {
    flex: 1,

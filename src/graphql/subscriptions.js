@@ -28,6 +28,7 @@ export const onCreateItem = /* GraphQL */ `
       }
       step {
         description
+        image
       }
       notes
       forked
@@ -47,6 +48,7 @@ export const onCreateItem = /* GraphQL */ `
         nextToken
         startedAt
       }
+      creator
       _version
       _deleted
       _lastChangedAt
@@ -82,6 +84,7 @@ export const onUpdateItem = /* GraphQL */ `
       }
       step {
         description
+        image
       }
       notes
       forked
@@ -101,6 +104,7 @@ export const onUpdateItem = /* GraphQL */ `
         nextToken
         startedAt
       }
+      creator
       _version
       _deleted
       _lastChangedAt
@@ -136,6 +140,7 @@ export const onDeleteItem = /* GraphQL */ `
       }
       step {
         description
+        image
       }
       notes
       forked
@@ -155,6 +160,7 @@ export const onDeleteItem = /* GraphQL */ `
         nextToken
         startedAt
       }
+      creator
       _version
       _deleted
       _lastChangedAt
@@ -186,6 +192,27 @@ export const onCreateUser = /* GraphQL */ `
       }
       email
       provider
+      createdRecipes {
+        items {
+          id
+          name
+          caseInsensitiveName
+          description
+          tag
+          rating
+          image
+          notes
+          forked
+          creator
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
       _version
       _deleted
       _lastChangedAt
@@ -217,6 +244,27 @@ export const onUpdateUser = /* GraphQL */ `
       }
       email
       provider
+      createdRecipes {
+        items {
+          id
+          name
+          caseInsensitiveName
+          description
+          tag
+          rating
+          image
+          notes
+          forked
+          creator
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
       _version
       _deleted
       _lastChangedAt
@@ -248,6 +296,27 @@ export const onDeleteUser = /* GraphQL */ `
       }
       email
       provider
+      createdRecipes {
+        items {
+          id
+          name
+          caseInsensitiveName
+          description
+          tag
+          rating
+          image
+          notes
+          forked
+          creator
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
       _version
       _deleted
       _lastChangedAt
@@ -281,6 +350,7 @@ export const onCreateUserRecipe = /* GraphQL */ `
         }
         step {
           description
+          image
         }
         notes
         forked
@@ -288,6 +358,7 @@ export const onCreateUserRecipe = /* GraphQL */ `
           nextToken
           startedAt
         }
+        creator
         _version
         _deleted
         _lastChangedAt
@@ -303,6 +374,10 @@ export const onCreateUserRecipe = /* GraphQL */ `
         }
         email
         provider
+        createdRecipes {
+          nextToken
+          startedAt
+        }
         _version
         _deleted
         _lastChangedAt
@@ -344,6 +419,7 @@ export const onUpdateUserRecipe = /* GraphQL */ `
         }
         step {
           description
+          image
         }
         notes
         forked
@@ -351,6 +427,7 @@ export const onUpdateUserRecipe = /* GraphQL */ `
           nextToken
           startedAt
         }
+        creator
         _version
         _deleted
         _lastChangedAt
@@ -366,6 +443,10 @@ export const onUpdateUserRecipe = /* GraphQL */ `
         }
         email
         provider
+        createdRecipes {
+          nextToken
+          startedAt
+        }
         _version
         _deleted
         _lastChangedAt
@@ -407,6 +488,7 @@ export const onDeleteUserRecipe = /* GraphQL */ `
         }
         step {
           description
+          image
         }
         notes
         forked
@@ -414,6 +496,7 @@ export const onDeleteUserRecipe = /* GraphQL */ `
           nextToken
           startedAt
         }
+        creator
         _version
         _deleted
         _lastChangedAt
@@ -429,6 +512,10 @@ export const onDeleteUserRecipe = /* GraphQL */ `
         }
         email
         provider
+        createdRecipes {
+          nextToken
+          startedAt
+        }
         _version
         _deleted
         _lastChangedAt

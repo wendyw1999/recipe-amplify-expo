@@ -33,6 +33,7 @@ export const syncItems = /* GraphQL */ `
         }
         step {
           description
+          image
         }
         notes
         forked
@@ -40,6 +41,7 @@ export const syncItems = /* GraphQL */ `
           nextToken
           startedAt
         }
+        creator
         _version
         _deleted
         _lastChangedAt
@@ -78,6 +80,7 @@ export const getItem = /* GraphQL */ `
       }
       step {
         description
+        image
       }
       notes
       forked
@@ -97,6 +100,7 @@ export const getItem = /* GraphQL */ `
         nextToken
         startedAt
       }
+      creator
       _version
       _deleted
       _lastChangedAt
@@ -131,6 +135,7 @@ export const listItems = /* GraphQL */ `
         }
         step {
           description
+          image
         }
         notes
         forked
@@ -138,6 +143,7 @@ export const listItems = /* GraphQL */ `
           nextToken
           startedAt
         }
+        creator
         _version
         _deleted
         _lastChangedAt
@@ -171,6 +177,10 @@ export const syncUsers = /* GraphQL */ `
         }
         email
         provider
+        createdRecipes {
+          nextToken
+          startedAt
+        }
         _version
         _deleted
         _lastChangedAt
@@ -205,6 +215,27 @@ export const getUser = /* GraphQL */ `
       }
       email
       provider
+      createdRecipes {
+        items {
+          id
+          name
+          caseInsensitiveName
+          description
+          tag
+          rating
+          image
+          notes
+          forked
+          creator
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        nextToken
+        startedAt
+      }
       _version
       _deleted
       _lastChangedAt
@@ -229,6 +260,10 @@ export const listUsers = /* GraphQL */ `
         }
         email
         provider
+        createdRecipes {
+          nextToken
+          startedAt
+        }
         _version
         _deleted
         _lastChangedAt
@@ -267,6 +302,128 @@ export const syncUserRecipes = /* GraphQL */ `
           image
           notes
           forked
+          creator
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        user {
+          id
+          username
+          email
+          provider
+          _version
+          _deleted
+          _lastChangedAt
+          createdAt
+          updatedAt
+        }
+        liked
+        rating
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      nextToken
+      startedAt
+    }
+  }
+`;
+export const getUserRecipe = /* GraphQL */ `
+  query GetUserRecipe($id: ID!) {
+    getUserRecipe(id: $id) {
+      id
+      recipeID
+      userID
+      recipes {
+        id
+        name
+        caseInsensitiveName
+        description
+        tag
+        rating
+        image
+        ingredient {
+          name
+          amount
+          unit
+          preparation
+        }
+        ingredientGroup {
+          name
+        }
+        step {
+          description
+          image
+        }
+        notes
+        forked
+        users {
+          nextToken
+          startedAt
+        }
+        creator
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      user {
+        id
+        username
+        recipes {
+          nextToken
+          startedAt
+        }
+        email
+        provider
+        createdRecipes {
+          nextToken
+          startedAt
+        }
+        _version
+        _deleted
+        _lastChangedAt
+        createdAt
+        updatedAt
+      }
+      liked
+      rating
+      _version
+      _deleted
+      _lastChangedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export const listUserRecipes = /* GraphQL */ `
+  query ListUserRecipes(
+    $filter: ModelUserRecipeFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listUserRecipes(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        recipeID
+        userID
+        recipes {
+          id
+          name
+          caseInsensitiveName
+          description
+          tag
+          rating
+          image
+          notes
+          forked
+          creator
           _version
           _deleted
           _lastChangedAt

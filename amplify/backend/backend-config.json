@@ -12,7 +12,14 @@
               "description": ""
             }
           },
-          "additionalAuthenticationProviders": []
+          "additionalAuthenticationProviders": [
+            {
+              "authenticationType": "AMAZON_COGNITO_USER_POOLS",
+              "userPoolConfig": {
+                "userPoolId": "authrecipeamplify41c600dd"
+              }
+            }
+          ]
         }
       }
     }

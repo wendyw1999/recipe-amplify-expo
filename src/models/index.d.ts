@@ -18,6 +18,7 @@ export declare class IngredientGroupItem {
 
 export declare class StepItem {
   readonly description?: string;
+  readonly image?: string;
   constructor(init: ModelInit<StepItem>);
 }
 
@@ -47,6 +48,7 @@ export declare class Item {
   readonly notes?: string;
   readonly forked?: string;
   readonly users?: (UserRecipe | null)[];
+  readonly creator?: string;
   readonly createdAt?: string;
   readonly updatedAt?: string;
   constructor(init: ModelInit<Item, ItemMetaData>);
@@ -71,6 +73,7 @@ export declare class User {
   readonly recipes?: (UserRecipe | null)[];
   readonly email?: string;
   readonly provider?: string;
+  readonly createdRecipes?: (Item | null)[];
   readonly createdAt?: string;
   readonly updatedAt?: string;
   constructor(init: ModelInit<User, UserMetaData>);

@@ -1,5 +1,5 @@
 type Item @model 
-@auth(rules: [{ allow: public, operations: [read] }])
+@key(name:"byCreator",fields:["creator","name"])
 {
   id: ID!
   name:String
@@ -14,18 +14,22 @@ type Item @model
   notes:String
   forked:String
   users: [UserRecipe] @connection(keyName:"byRecipe",fields:["id"])
+  creator:ID
 }
 
-type User @model {
+type User @model 
+ {
 
   id:ID!
   username:String!
   recipes: [UserRecipe] @connection (keyName:"byUser",fields:["id"])
   email:String
   provider:String
+  createdRecipes:[Item] @connection(keyName:"byCreator",fields:["id"])
 }
 
-type UserRecipe @model(queries: null) @key(name: "byUser", fields: ["userID", "recipeID"])
+type UserRecipe @model
+@key(name: "byUser", fields: ["userID", "recipeID"])
   @key(name: "byRecipe", fields: ["recipeID", "userID"]) {
 
     id:ID!
@@ -54,4 +58,5 @@ type IngredientGroupItem {
 
 type StepItem {
   description:String
+  image:String
 }
