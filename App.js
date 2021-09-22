@@ -42,15 +42,6 @@ import { Colors } from 'react-native/Libraries/NewAppScreen';
 
 export const AuthContext = createContext();
 
-// const accountSid = "AC9fd8545d85f892f6960814b556fe3e87";
-// const authToken = "6ca9ddea8778baa5cc572245093c1e95";
-// const twilio = require('twilio')(accountSid, authToken);
-
-
-// client.verify.services('VAc58d10e4784a8152f063459e680afc3e')
-//              .verifications
-//              .create({to: '+9048745713', channel: 'sms'})
-//              .then(verification => console.log(verification.sid));
 
 Amplify.configure(config);
 
