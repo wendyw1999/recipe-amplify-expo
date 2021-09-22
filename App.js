@@ -12,6 +12,7 @@ import NetInfo from "@react-native-community/netinfo";
 // import Amplify from '@aws-amplify/core';
 import config from './src/aws-exports';
 
+
 import API, { graphqlOperation } from '@aws-amplify/api';
 import * as mutations from './src/graphql/mutations';
 import * as queries from './src/graphql/queries';
@@ -22,10 +23,12 @@ import { listItems,listUserRecipes,listUsers } from './src/graphql/queries';
 import {   Item,UserRecipe,User,IngredientItem,IngredientGroupItem,StepItem} from './src/models'
 import React from "react";
 import {FlatList,Image,ImageBackground,ActivityIndicator,Alert,SafeAreaView,ScrollView,
-  TouchableOpacity,StyleSheet,View,Text,StatusBar,TextInput} from "react-native";
+  TouchableOpacity,StyleSheet,View,StatusBar} from "react-native";
 import { Icon,Input,Button,SearchBar,SocialIcon,ListItem,Avatar,Rating } from 'react-native-elements';
 
 import { Ionicons,Entypo } from '@expo/vector-icons';
+import { DefaultTheme, Provider as PaperProvider,TextInput,
+Text,Divider,List,useTheme } from 'react-native-paper';
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState,useEffect ,useRef,useContext,createContext} from 'react';
@@ -35,14 +38,16 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { ConsoleLogger } from '@aws-amplify/core';
 import { setAutoLogAppEventsEnabledAsync } from 'expo-facebook';
+import { Colors } from 'react-native/Libraries/NewAppScreen';
 
 export const AuthContext = createContext();
 
+
 Amplify.configure(config);
+
 
 const COLOR = {
   lightRed:"#F2DBD5",
-
   red:"#EB594C",
   white:"#F1E5E0",
   green:"#334429",
@@ -142,8 +147,9 @@ function Home(props) {
       gestureEnabled: false,
     })}
     > 
-    <Tab.Screen name="Feed" component={Feed}/>
+   <Tab.Screen name="Feed" component={Feed}/>
     <Tab.Screen name="Create" component={Create}/>
+    
      <Tab.Screen name="Profile" component={Profile}/>
     </Tab.Navigator>
     </AuthContext.Provider >
@@ -176,10 +182,10 @@ function CreateStep(props) {
       onChangeText={setStep}
       value={step}
       placeholder={"Step "+(props.index+1)}
-      editable={editable}
-      style={editable?styles.input:styles.disabledInput}
+      disabled={!editable}
+      style={{backgroundColor:"white"}}
+      // style={editable?styles.input:styles.disabledInput}
       >
-
       </TextInput>
       {error?<Text>This field is required</Text>:null}
       </View>
@@ -194,60 +200,63 @@ function CreateStep(props) {
     </View>
   )
 }
-function CreateIngredient(props) {
 
-  const [editable,setEditable] = useState(true);
-  const [editing,setEditing] = useState(true);
- const [name,setName] = useState("");
- const [amount,setAmount] = useState("");
- const [unit,setUnit] = useState("");
+
+function CreateIngredient(props) {
+  const object = props.route.params;
+  const index = object.index
+  const navigation = props.navigation
+ const [name,setName] = useState(object.ingredient.name);
+ const [amount,setAmount] = useState(object.ingredient.amount);
+ const [unit,setUnit] = useState(object.ingredient.unit);
   const [error,setError] = useState(false);
 
   function handleIngredient() {
-    if (!editable) {
-      setEditable(true);
-      return
-    }
-    if (name=="") {
-      setError(true)
-    } else {
+    
       setError(false);
-      setEditable(false);
-      props.handleIngredient({name:name,amount:amount,unit:unit},props.index)
-    }
+      navigation.navigate("Create",{index:index,
+        ingredient:
+        {unit:unit,name:name,amount:amount}});
+      // props.handleIngredient({name:name,amount:amount,unit:unit},props.index)
+    
   }
 return (
-  <SafeAreaView style={{flexDirection:"row"}}>
-    <View style={{flexDirection:"column",width:"30%"}}>
+  <SafeAreaView>
+    <View style={{flexDirection:"column"}}>
       <TextInput
       onChangeText={setName}
       value={name}
-      placeholder={"Ingredient "+(props.index+1)}
-      style={editable?styles.input:styles.disabledInput}
-      editable={editable}
+      style={{backgroundColor:"white"}}
+      placeholder={"Ingredient "+(index+1)}
+      // style={editable?styles.input:styles.disabledInput}
       >
       </TextInput>
       {error?<Text>This field is required</Text>:null}
 
     </View>
-    <View style={{width:"30%"}}>
+    <View>
+     
     <TextInput
       onChangeText={setAmount}
       value={amount}
+      right={<TextInput.Affix text="e.g. 10"/>}
       placeholder="Amount"
-      style={editable?styles.input:styles.disabledInput}
-      editable={editable}
+      style={{backgroundColor:"white"}}
+
+      // style={editable?styles.input:styles.disabledInput}
 
       >
       </TextInput>
     </View>
-    <View style={{width:"20%"}}>
+    <View>
     <TextInput
       onChangeText={setUnit}
+      right={<TextInput.Affix text="e.g. gram"/>}
       value={unit}
       placeholder="Unit"
-      style={editable?styles.input:styles.disabledInput}
-      editable={editable}
+      style={{backgroundColor:"white"}}
+
+      // style={editable?styles.input:styles.disabledInput}
 
       >
       </TextInput>
@@ -257,7 +266,7 @@ return (
     
     <TouchableOpacity style={{padding:5}} onPress={()=>handleIngredient()}>
  <Ionicons
-name={editable?'checkmark':"pencil"}
+name={"checkmark"}
 size={24}
 color={COLOR.red} />
  </TouchableOpacity>
@@ -273,6 +282,13 @@ function Create(props) {
   const [ingredients,setIngredients] = useState([{
     name:'',amount:'',unit:''
   }]);
+
+  useEffect(() => {
+    if (props.route.params?.ingredient) {
+      ingredients[props.route.params.index] = props.route.params.ingredient;
+      setIngredients([...ingredients]);
+    }
+  }, [props.route.params?.ingredient]);
 
 
 
@@ -355,10 +371,7 @@ function Create(props) {
     setSteps([...steps.slice(0, index), ...steps.slice(index + 1)])
   }
   function deleteIngredient(index) {
-    if (ingredients.length==1) {
-      Alert.alert("Cannot delete");
-      return;
-    }
+    
     setIngredients([...ingredients.slice(0, index), ...ingredients.slice(index + 1)])
   }
   if (submitted) {
@@ -376,8 +389,10 @@ function Create(props) {
         }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
-          placeholder="Recipe Title"
-            style={styles.input}
+          style={{backgroundColor:"white"}}
+          placeholder="Unnamed Recipe"
+          label="Recipe Title"
+            // style={styles.input}
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
@@ -396,8 +411,10 @@ function Create(props) {
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
           multiline={true}
-          placeholder="Description"
-            style={styles.input}
+          style={{backgroundColor:"white"}}
+
+          label="Description"
+            // style={styles.input}
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
@@ -413,9 +430,10 @@ function Create(props) {
         }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
+          style={{backgroundColor:"white"}}
           multiline={true}
           placeholder="Tags (separate with comma)"
-            style={styles.input}
+            // style={styles.input}
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
@@ -425,16 +443,37 @@ function Create(props) {
         defaultValue=""
       />
        <View>
+         <Text>Ingredients</Text>
         {ingredients.map((item,index)=> {
           return(
-            <View style={{flexDirection:"row"}}  key={index}>
-      <CreateIngredient handleIngredient={handleIngredient} index={index}></CreateIngredient>
-      <TouchableOpacity style={{padding:5}} onPress={()=>deleteIngredient(index)}>
- <Ionicons
-name={'trash-sharp'}
-size={24}
-color={COLOR.red} />
- </TouchableOpacity>
+            <View key={index} >
+
+        <ListItem.Swipeable key={index} bottomDivider
+              rightContent={
+                <Button
+                  title="Delete"
+                  icon={{ name: 'delete', color: 'white' }}
+                  buttonStyle={{ minHeight: '100%', backgroundColor: 'red' }}
+                  onPress={()=>deleteIngredient(index)}
+                />
+              }
+              leftContent={
+                <Button title="Edit" onPress={()=>props.navigation.navigate("Ingredient",
+              {index:index,ingredient:ingredients[index]})}
+              icon={{ name: 'create', color: 'white' }}
+                buttonStyle={{ minHeight: '100%'}}
+              ></Button>
+              }>
+                
+                
+        <ListItem.Content>
+          
+          <ListItem.Title style={{
+            color:theme.colors.placeholder,
+            height:23
+                      }}>{item.name==""?"Swipe right to edit":item.name + " * " + item.amount + " " +item.unit}</ListItem.Title>
+        </ListItem.Content>
+      </ListItem.Swipeable>
       </View>)
 
             
@@ -500,9 +539,10 @@ function CreateImage(props) {
   return(
     <View>
 <TextInput
+      style={{backgroundColor:"white"}}
     onChangeText={(e)=>handleImage(e)}
     value={image}
-    style={styles.input}
+    // style={styles.input}
     placeholder="image url"
     ></TextInput>
     {url!=""?<Image source={{uri:url}} style={styles.image}/>:null}
@@ -633,11 +673,13 @@ async function createUser(userItem)
 
 {
   try {
+    const provider = userItem.username.split("_")[0]
+    
     const user = {id:userItem.username,email:userItem.email,username:userItem.username,
-    provider:userItem.username.startsWith("facebook")?"facebook":"cognito"
+    provider:provider
   };
   const originalUser = await API.graphql({ query: queries.getUser, variables: { id: userItem.username }});
-  if (originalUser.data) {
+  if (originalUser.data.getUser) {
     return originalUser.data.getUser;
   } else {
     const newUser = await API.graphql(graphqlOperation(mutations.createUser, {input: user}));
@@ -652,6 +694,7 @@ async function createUser(userItem)
 function UserStatus (props){
   const [authState,setAuthState] = useContext(AuthContext);  
   const isMountedRef = useRef(null);  
+  const [phone,setPhone] = useState("")
 const navigation = props.nav;
   useEffect(()=>{
     Hub.listen("auth", (data) => {
@@ -738,11 +781,17 @@ const navigation = props.nav;
   button
   type='facebook'  
   onPress={() => Auth.federatedSignIn({provider:"Facebook"})}/>
+   <SocialIcon
+  title='Sign In With Google'
+  button
+  type='google'  
+  onPress={() => Auth.federatedSignIn({provider:"Google"})}/>
 
 <SocialIcon style={{backgroundColor:"black"}}
 fontStyle={{color:"white"}}
-  title='Sign In With Email'
+  title='Sign In With Username'
   button onPress={() => Auth.federatedSignIn()}/>
+
 
       </View>)
     }
@@ -1072,7 +1121,6 @@ async function queryRecipes(string) {
 
     catch(e) {console.log(e)} 
   } else if (props.created==true) {
-    console.log("!!!!");
     const  savedStartsWith= created.filter(
       item=>item.caseInsensitiveName.startsWith(string)
     )
@@ -1296,6 +1344,7 @@ try {
     try {
       
       const userItem = await createUser(authState);
+      
       
       const recipeItem = await API.graphql(graphqlOperation(queries.getItem, { id: recipe_id }));
       // const recipeItem = await DataStore.query(Item,recipe_id);
@@ -1523,8 +1572,18 @@ data={data} renderItem={({item}) => renderItem(item)} />
 }
 
  
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    backgroundColor:"white",
+    primary: COLOR.red,
+    accent: 'yellow',
+  },
+};
 
-const App =() => {
+
+const App =(props) => {
 
 
   const [authState,setAuthState] = useState({
@@ -1615,6 +1674,11 @@ const App =() => {
 <Stack.Screen
   name="Created"
   component={Created}
+/>
+<Stack.Screen
+  name="Ingredient"
+  component={CreateIngredient}
+  initialParams={{index:1}}
 />
 
       </Stack.Navigator>
@@ -1780,5 +1844,10 @@ alignItems:"center",
 alignSelf:"center",
 },
 });
-export default App;
+export default function AppOuter() {
+  return (
+  <PaperProvider theme={theme}>
+      <App />
+    </PaperProvider>)
+}
 
